@@ -7,7 +7,7 @@ import requests
 import os
 from dotenv import load_dotenv
 
-# 🔒 Load secrets from .env file securely!
+# 🔒 Load secrets from .env file securely
 load_dotenv()
 
 app = Flask(__name__)
@@ -17,6 +17,9 @@ CORS(app)
 DATABASE_URL = os.getenv("DATABASE_URL")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+# ==========================================
+# 1. DATABASE LOADER (Fetches Live Neon Data)
+# ==========================================
 def load_data():
     try:
         conn = psycopg2.connect(DATABASE_URL)
@@ -30,6 +33,9 @@ def load_data():
         print(f"Database Error: {e}")
         return []
 
+# ==========================================
+# 2. DASHBOARD ENDPOINT
+# ==========================================
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard():
     assets = load_data()
@@ -42,6 +48,9 @@ def get_dashboard():
         "top_risks": sorted_assets[:12]
     })
 
+# ==========================================
+# 3. KNAPSACK BUDGET OPTIMIZER ENDPOINT
+# ==========================================
 @app.route('/api/optimize/<int:budget_lakhs>', methods=['GET'])
 def optimize_budget(budget_lakhs):
     data = load_data()
@@ -72,6 +81,9 @@ def optimize_budget(budget_lakhs):
         "recommended_actions": selected_fixes
     })
 
+# ==========================================
+# 4. ADD ASSET ENDPOINT (Injects into Pipeline)
+# ==========================================
 @app.route('/api/add-asset', methods=['POST'])
 def add_asset():
     new_asset = request.json
@@ -88,14 +100,19 @@ def add_asset():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ==========================================
+# 5. AI CHAT ENDPOINT (With Context Injection / RAG)
+# ==========================================
 @app.route('/api/chat', methods=['POST'])
 def chat():
     user_message = request.json.get("message", "")
     
+    # 1. Fetch current live data
     assets = load_data()
     sorted_assets = sorted(assets, key=lambda x: float(x.get("expected_monthly_loss_lakhs", 0)), reverse=True)
     top_5_assets = sorted_assets[:5]
     
+    # 2. Build Context String for AI
     company_data_context = "Here is the live data for our company's top cyber risks right now:\n"
     for asset in top_5_assets:
         company_data_context += f"- Asset: {asset.get('asset_name')} | Vulnerability: {asset.get('vulnerability_cve')} | Expected Loss: {asset.get('expected_monthly_loss_lakhs')} Lakhs | Fix Cost: {asset.get('remediation_cost_lakhs')} Lakhs | Action: {asset.get('remediation_action')}\n"
@@ -108,26 +125,45 @@ def chat():
     {company_data_context}
     """
     
+    # Check if API key is loaded
+    if not GROQ_API_KEY:
+        print("❌ CRITICAL ERROR: GROQ_API_KEY is missing! Did you name your .env file correctly?")
+        return jsonify({"response": "System Error: Missing API Key. Check the Python terminal."})
+
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
-    
     payload = {
-        "model": "llama-3.1-8b-instant", # 🚀 UPDATED TO THE NEWEST MODEL!
+        "model": "openai/gpt-oss-120b",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message}
         ]
     }
     
+    
     try:
         response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+        
+        # Check if Groq rejected our request
+        if response.status_code != 200:
+            error_data = response.json()
+            error_msg = error_data.get("error", {}).get("message", "Unknown Groq Error")
+            print(f"❌ GROQ API ERROR: {error_msg}")
+            return jsonify({"response": f"Groq Error: {error_msg}"})
+            
+        # Success!
         ai_text = response.json()["choices"][0]["message"]["content"]
         return jsonify({"response": ai_text})
+        
     except Exception as e:
-        return jsonify({"response": "AI is currently offline. Please check your Groq API Key and internet connection."})
+        print(f"❌ PYTHON CRASH: {e}")
+        return jsonify({"response": f"System error: {str(e)}"})
 
+# ==========================================
+# BOOT THE SERVER
+# ==========================================
 if __name__ == '__main__':
     print("🚀 Starting Flask API on http://127.0.0.1:5000")
     app.run(port=5000, debug=True)
