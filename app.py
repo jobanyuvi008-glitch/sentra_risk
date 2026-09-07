@@ -101,6 +101,9 @@ def add_asset():
 # ==========================================
 # 5. NEW: DELETE ASSET ENDPOINT
 # ==========================================
+# ==========================================
+# 5. DELETE ASSET ENDPOINT (Deletes from Neon DB)
+# ==========================================
 @app.route('/api/delete-asset', methods=['POST'])
 def delete_asset():
     req = request.json
@@ -108,17 +111,23 @@ def delete_asset():
     cve = req.get("vulnerability_cve")
     
     try:
-        with open('data.json', 'r') as f:
-            assets = json.load(f)
+        # Connect directly to Neon PostgreSQL
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
         
-        # Keep everything EXCEPT the one the user clicked delete on
-        updated_assets = [a for a in assets if not (a.get("asset_id") == asset_id and a.get("vulnerability_cve") == cve)]
+        # Delete the specific row directly from the live database
+        cur.execute("""
+            DELETE FROM corporate_assets 
+            WHERE asset_id = %s AND vulnerability_cve = %s;
+        """, (asset_id, cve))
         
-        with open('data.json', 'w') as f:
-            json.dump(updated_assets, f, indent=4)
+        conn.commit()
+        cur.close()
+        conn.close()
             
-        return jsonify({"status": "success", "message": "Asset deleted!"})
+        return jsonify({"status": "success", "message": "Asset deleted from live database!"})
     except Exception as e:
+        print(f"❌ Delete Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ==========================================
