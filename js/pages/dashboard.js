@@ -77,6 +77,12 @@ const DashboardPage = {
                 <div class="chart-card-title">Top 5 Live Risk Contributors</div>
                 <div class="chart-card-sub">Expected Loss by asset (₹ Crore)</div>
               </div>
+              
+              <!-- 💥 NEW: VIEW ALL BUTTON -->
+              <button onclick="navigateTo('explorer')" style="cursor:pointer; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent); background:var(--accent-subtle); border:1px solid var(--accent-border); padding:6px 12px; border-radius:100px; transition:all 0.2s;" onmouseover="this.style.transform='translateX(2px)'" onmouseout="this.style.transform='translateX(0)'">
+                View All &rarr;
+              </button>
+              
             </div>
             <div class="chart-container" style="height:220px;">
               <canvas id="chart-contributors"></canvas>
@@ -138,7 +144,6 @@ const DashboardPage = {
           // ==========================================
           // 1. DYNAMIC CYBER RISK SCORE (0-100)
           // ==========================================
-          // Calculate the average probability of attack across top 12 risks
           const topRisks = data.assets.slice(0, 12);
           const avgProb = topRisks.reduce((sum, a) => sum + a.probability_of_attack_per_month, 0) / topRisks.length;
           const dynamicScore = Math.round(avgProb * 100);
@@ -162,10 +167,9 @@ const DashboardPage = {
               `${data.total}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">Scanned</span>`;
 
           // ==========================================
-          // 3. NEW: DYNAMIC ACTIVE & CRITICAL CVEs
+          // 3. DYNAMIC ACTIVE & CRITICAL CVEs
           // ==========================================
           const totalCVEs = data.assets.length;
-          // Count how many have a CVSS score of 9.0 or higher (Critical)
           const criticalCVEs = data.assets.filter(a => parseFloat(a.cvss_severity) >= 9.0).length;
 
           document.querySelector('#mc-cves .metric-card-value').innerText = totalCVEs;
@@ -178,15 +182,15 @@ const DashboardPage = {
           const top5 = data.assets.slice(0, 5);
           const labels = top5.map(a => a.asset_name);
           const values = top5.map(a => parseFloat((a.expected_monthly_loss_lakhs / 100).toFixed(2)));
-          const colors = ['#DC2626', '#DC2626', '#EA580C', '#D97706', '#D97706']; // Critical to Medium colors
+          const colors = ['#DC2626', '#DC2626', '#EA580C', '#D97706', '#D97706'];
 
           createHorizontalBarChart('chart-contributors', labels, values, colors);
 
           // ==========================================
           // 5. DRAW THE 12-MONTH TREND LINE CHART
           // ==========================================
-          const trendData = [...d.ealTrend]; // Copy the mock 12 month array
-          trendData[trendData.length - 1] = parseFloat(ealCr); // Force the LAST month to match the Live Database!
+          const trendData = [...d.ealTrend]; 
+          trendData[trendData.length - 1] = parseFloat(ealCr); 
 
           const accentHex = cssVar('--accent').trim() || '#2E5AAC';
           const ctx = document.getElementById('chart-eal-trend');
