@@ -74,7 +74,7 @@ const SimulatorPage = {
     this.checkedActions = new Set();
     
     // FETCH ALL LIVE DATA (Not just Top 12!)
-    fetch('http://127.0.0.1:5000/api/assets')
+    fetch('https://sentra-risk.onrender.com/api/assets')
       .then(res => res.json())
       .then(data => {
          this.baseEALCr = data.total_enterprise_risk_lakhs / 100;

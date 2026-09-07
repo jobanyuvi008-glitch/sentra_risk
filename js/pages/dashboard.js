@@ -135,7 +135,7 @@ const DashboardPage = {
     // ==========================================
     // FETCH FULL LIVE ASSET DATA FROM FLASK API
     // ==========================================
-    fetch('http://127.0.0.1:5000/api/assets')
+    fetch('https://sentra-risk.onrender.com/api/assets')
       .then(res => res.json())
       .then(data => {
           // Convert Lakhs to Crores for the Dashboard (1 Crore = 100 Lakhs)

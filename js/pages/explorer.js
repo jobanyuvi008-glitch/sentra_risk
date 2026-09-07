@@ -97,7 +97,7 @@ const ExplorerPage = {
           "remediation_action": "Apply standard patches"
       };
 
-      fetch('http://127.0.0.1:5000/api/add-asset', {
+      fetch('https://sentra-risk.onrender.com/api/add-asset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newAsset)
@@ -120,7 +120,7 @@ const ExplorerPage = {
       if(card) card.style.display = 'none';
 
       // Tell Python to wipe it from the Pipeline
-      fetch('http://127.0.0.1:5000/api/delete-asset', {
+      fetch('https://sentra-risk.onrender.com/api/delete-asset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ asset_id: assetId, vulnerability_cve: cve })
@@ -132,7 +132,7 @@ const ExplorerPage = {
   },
 
   init() {
-    fetch('http://127.0.0.1:5000/api/assets')
+    fetch('https://sentra-risk.onrender.com/api/assets')
       .then(res => res.json())
       .then(data => {
           this.assetsData = data.assets;

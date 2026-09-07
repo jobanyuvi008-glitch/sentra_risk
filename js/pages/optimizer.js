@@ -54,7 +54,7 @@ const OptimizerPage = {
 
   init() {
     // Get Base EAL from Live Dashboard API for progress bar math
-    fetch('http://127.0.0.1:5000/api/dashboard')
+    fetch('https://sentra-risk.onrender.com/api/dashboard')
       .then(res => res.json())
       .then(data => { this.baseEAL = data.total_enterprise_risk_lakhs; });
 
@@ -81,7 +81,7 @@ const OptimizerPage = {
 
     resultsEl.innerHTML = '<div style="text-align:center; padding: 40px; color:var(--text-muted);">Running Knapsack Algorithm...</div>';
 
-    fetch(`http://127.0.0.1:5000/api/optimize/${budgetLakhs}`)
+    fetch(`https://sentra-risk.onrender.com/api/optimize/${budgetLakhs}`)
       .then(res => res.json())
       .then(data => {
         if (!data.recommended_actions || data.recommended_actions.length === 0) {
