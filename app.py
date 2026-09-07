@@ -85,17 +85,57 @@ def optimize_budget(budget_lakhs):
 # ==========================================
 # 4. ADD ASSET ENDPOINT
 # ==========================================
+# ==========================================
+# 4. ADD ASSET ENDPOINT (Injects straight into Neon DB)
+# ==========================================
 @app.route('/api/add-asset', methods=['POST'])
 def add_asset():
     new_asset = request.json
     try:
-        with open('data.json', 'r') as f:
-            assets = json.load(f)
-        assets.append(new_asset)
-        with open('data.json', 'w') as f:
-            json.dump(assets, f, indent=4)
-        return jsonify({"status": "success", "message": "Asset added to pipeline!"})
+        # We must calculate the expected loss for the new asset before inserting it
+        base_impact = int(new_asset.get("business_criticality", 0)) * 10
+        breach_cost = (int(new_asset.get("sensitive_data_records", 0)) * 100) / 100000
+        financial_impact = base_impact + breach_cost
+        
+        # For a custom asset, we assign a default base probability of 0.85
+        final_prob = 0.95 if new_asset.get("internet_exposed") else 0.85
+        expected_loss = final_prob * financial_impact
+
+        # Connect directly to Neon PostgreSQL
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+        
+        # Insert the new row directly into the live database
+        cur.execute("""
+            INSERT INTO corporate_assets (
+                asset_id, asset_name, business_criticality, sensitive_data_records,
+                vulnerability_cve, vulnerability_name, cvss_severity, internet_exposed,
+                remediation_cost_lakhs, remediation_action, probability_of_attack_per_month,
+                financial_impact_lakhs, expected_monthly_loss_lakhs
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            new_asset.get("asset_id"),
+            new_asset.get("asset_name"),
+            int(new_asset.get("business_criticality", 0)),
+            int(new_asset.get("sensitive_data_records", 0)),
+            new_asset.get("vulnerability_cve"),
+            new_asset.get("vulnerability_name"),
+            float(new_asset.get("cvss_severity", 0.0)),
+            bool(new_asset.get("internet_exposed", False)),
+            int(new_asset.get("remediation_cost_lakhs", 0)),
+            new_asset.get("remediation_action"),
+            round(final_prob, 4),
+            round(financial_impact, 2),
+            round(expected_loss, 2)
+        ))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+            
+        return jsonify({"status": "success", "message": "Asset added directly to live database!"})
     except Exception as e:
+        print(f"❌ Add Asset Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ==========================================
