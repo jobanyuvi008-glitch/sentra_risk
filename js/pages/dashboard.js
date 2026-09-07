@@ -29,7 +29,7 @@ const DashboardPage = {
           ${renderMetricCard({
             id: 'mc-risk-score',
             label: `<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> CYBER RISK SCORE`,
-            value: '...', // Replaced by live data
+            value: '...', 
             valueSuffix: '/100',
             valueClass: 'high',
             subText: 'Overall posture rating',
@@ -59,10 +59,10 @@ const DashboardPage = {
           ${renderMetricCard({
             id: 'mc-cves',
             label: `<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> ACTIVE CVEs`,
-            value: org.activeCVEs,
+            value: '...',
             valueSuffix: '',
             valueClass: 'high',
-            subText: `<span style="color:var(--risk-critical);font-weight:600;">${org.criticalCVEs} critical</span> unpatched`,
+            subText: `<span style="color:var(--text-muted);">Loading live CVEs...</span>`,
             sparklineId: null,
           })}
         </div>
@@ -127,9 +127,9 @@ const DashboardPage = {
     createDonutChart('chart-composition', rc.labels, rc.values, rc.colors);
 
     // ==========================================
-    // FETCH LIVE DATA FROM FLASK API
+    // FETCH FULL LIVE ASSET DATA FROM FLASK API
     // ==========================================
-    fetch('http://127.0.0.1:5000/api/dashboard')
+    fetch('http://127.0.0.1:5000/api/assets')
       .then(res => res.json())
       .then(data => {
           // Convert Lakhs to Crores for the Dashboard (1 Crore = 100 Lakhs)
@@ -138,8 +138,9 @@ const DashboardPage = {
           // ==========================================
           // 1. DYNAMIC CYBER RISK SCORE (0-100)
           // ==========================================
-          // Calculate the average probability of attack across top risks
-          const avgProb = data.top_risks.reduce((sum, a) => sum + a.probability_of_attack_per_month, 0) / data.top_risks.length;
+          // Calculate the average probability of attack across top 12 risks
+          const topRisks = data.assets.slice(0, 12);
+          const avgProb = topRisks.reduce((sum, a) => sum + a.probability_of_attack_per_month, 0) / topRisks.length;
           const dynamicScore = Math.round(avgProb * 100);
           
           let scoreClass = 'low';
@@ -152,18 +153,29 @@ const DashboardPage = {
           scoreCard.querySelector('.metric-card-value').className = `metric-card-value ${scoreClass}`;
           
           // ==========================================
-          // 2. INJECT DYNAMIC MONEY AND ASSETS
+          // 2. INJECT DYNAMIC MONEY AND TOTAL ASSETS
           // ==========================================
           document.querySelector('#mc-eal .metric-card-value').innerHTML = 
               `₹${ealCr}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">Cr</span>`;
           
           document.querySelector('#mc-exposure .metric-card-value').innerHTML = 
-              `${data.total_assets_scanned}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">Scanned</span>`;
+              `${data.total}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">Scanned</span>`;
 
           // ==========================================
-          // 3. DRAW LIVE BAR CHART (Top 5 Risks)
+          // 3. NEW: DYNAMIC ACTIVE & CRITICAL CVEs
           // ==========================================
-          const top5 = data.top_risks.slice(0, 5);
+          const totalCVEs = data.assets.length;
+          // Count how many have a CVSS score of 9.0 or higher (Critical)
+          const criticalCVEs = data.assets.filter(a => parseFloat(a.cvss_severity) >= 9.0).length;
+
+          document.querySelector('#mc-cves .metric-card-value').innerText = totalCVEs;
+          document.querySelector('#mc-cves .metric-card-sub').innerHTML = 
+              `<span style="color:var(--risk-critical);font-weight:600;">${criticalCVEs} critical</span> unpatched`;
+
+          // ==========================================
+          // 4. DRAW LIVE BAR CHART (Top 5 Risks)
+          // ==========================================
+          const top5 = data.assets.slice(0, 5);
           const labels = top5.map(a => a.asset_name);
           const values = top5.map(a => parseFloat((a.expected_monthly_loss_lakhs / 100).toFixed(2)));
           const colors = ['#DC2626', '#DC2626', '#EA580C', '#D97706', '#D97706']; // Critical to Medium colors
@@ -171,7 +183,7 @@ const DashboardPage = {
           createHorizontalBarChart('chart-contributors', labels, values, colors);
 
           // ==========================================
-          // 4. DRAW THE 12-MONTH TREND LINE CHART
+          // 5. DRAW THE 12-MONTH TREND LINE CHART
           // ==========================================
           const trendData = [...d.ealTrend]; // Copy the mock 12 month array
           trendData[trendData.length - 1] = parseFloat(ealCr); // Force the LAST month to match the Live Database!
