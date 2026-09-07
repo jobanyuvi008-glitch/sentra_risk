@@ -39,7 +39,7 @@ const SimulatorPage = {
               <div class="card" style="padding:40px 24px;text-align:center;">
                 <svg viewBox="0 0 24 24" style="width:36px;height:36px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 12px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 <div style="font-size:13.5px;font-weight:600;color:var(--text-secondary);">Select controls to model impact</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison based on live data.</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison across the entire enterprise.</div>
               </div>
             </div>
           </div>
@@ -73,16 +73,16 @@ const SimulatorPage = {
   init() {
     this.checkedActions = new Set();
     
-    // FETCH LIVE DATA
-    fetch('http://127.0.0.1:5000/api/dashboard')
+    // FETCH ALL LIVE DATA (Not just Top 12!)
+    fetch('http://127.0.0.1:5000/api/assets')
       .then(res => res.json())
       .then(data => {
          this.baseEALCr = data.total_enterprise_risk_lakhs / 100;
          this.baseExposureCr = this.baseEALCr * 3.5; 
          
-         // Group assets by exact remediation_action to create the cards
+         // Group ALL assets by exact remediation_action to create the cards
          this.liveActions = {};
-         data.top_risks.forEach(asset => {
+         data.assets.forEach(asset => {
              const action = asset.remediation_action;
              if (!this.liveActions[action]) {
                  this.liveActions[action] = { id: action, name: action, costLakhs: 0, riskSavedLakhs: 0, instances: 0 };
@@ -100,8 +100,10 @@ const SimulatorPage = {
     const listEl = document.getElementById('actions-list');
     listEl.innerHTML = '';
 
-    Object.values(this.liveActions).forEach(action => {
-      // Build the beautiful original action card HTML!
+    // Sort actions by most risk saved
+    const sortedActions = Object.values(this.liveActions).sort((a, b) => b.riskSavedLakhs - a.riskSavedLakhs);
+
+    sortedActions.forEach(action => {
       const cardHTML = `
         <div class="action-card" data-action-id="${action.id}" style="cursor:pointer;">
           <div class="action-checkbox">
@@ -145,7 +147,7 @@ const SimulatorPage = {
         <div class="card" style="padding:40px 24px;text-align:center;">
           <svg viewBox="0 0 24 24" style="width:36px;height:36px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 12px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <div style="font-size:13.5px;font-weight:600;color:var(--text-secondary);">Current Live Exposure: ₹${this.baseEALCr.toFixed(2)} Cr</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison based on live data.</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison across the entire enterprise.</div>
         </div>
       `;
       investBar.style.display = 'none';
@@ -161,12 +163,13 @@ const SimulatorPage = {
     });
 
     const totalEALReductionCr = totalEalReductionLakhs / 100;
-    const afterEALCr = Math.max(this.baseEALCr - totalEALReductionCr, 0.10);
+    
+    // We use Math.max(0, ...) so if they check all boxes, it safely hits ₹0.00 Cr
+    const afterEALCr = Math.max(this.baseEALCr - totalEALReductionCr, 0.00);
     const reductionPct = ((totalEALReductionCr / this.baseEALCr) * 100).toFixed(1);
     
-    // Simulate drops in max exposure and likelihood
-    const afterExposureCr = this.baseExposureCr * (1 - (reductionPct / 150)); 
-    const afterLikelihood = Math.max(64 - reductionPct, 5);
+    const afterExposureCr = Math.max(this.baseExposureCr * (1 - (reductionPct / 100)), 0.00); 
+    const afterLikelihood = Math.max(64 - reductionPct, 0);
     const rosi = totalCostLakhs > 0 ? (totalEalReductionLakhs / totalCostLakhs).toFixed(1) : '—';
 
     // Original Beautiful Before / After Render

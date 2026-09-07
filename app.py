@@ -84,21 +84,27 @@ def optimize_budget(budget_lakhs):
 # ==========================================
 # 4. ADD ASSET ENDPOINT (Injects into Pipeline)
 # ==========================================
-@app.route('/api/add-asset', methods=['POST'])
-def add_asset():
-    new_asset = request.json
-    try:
-        with open('data.json', 'r') as f:
-            assets = json.load(f)
-        
-        assets.append(new_asset)
-        
-        with open('data.json', 'w') as f:
-            json.dump(assets, f, indent=4)
-            
-        return jsonify({"status": "success", "message": "Asset added to pipeline!"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+# ==========================================
+# NEW: ALL ASSETS ENDPOINT (For Explorer)
+# ==========================================
+# ==========================================
+# NEW: ALL ASSETS ENDPOINT (For Explorer & Simulator)
+# ==========================================
+@app.route('/api/assets', methods=['GET'])
+def get_all_assets():
+    assets = load_data()
+    
+    # Calculate Total Financial Risk for all assets
+    total_expected_loss = sum(float(item.get("expected_monthly_loss_lakhs", 0)) for item in assets)
+    
+    # Sort them from highest risk to lowest
+    sorted_assets = sorted(assets, key=lambda x: float(x.get("expected_monthly_loss_lakhs", 0)), reverse=True)
+    
+    return jsonify({
+        "total": len(sorted_assets),
+        "total_enterprise_risk_lakhs": round(total_expected_loss, 2),
+        "assets": sorted_assets
+    })
 
 # ==========================================
 # 5. AI CHAT ENDPOINT (With Context Injection / RAG)

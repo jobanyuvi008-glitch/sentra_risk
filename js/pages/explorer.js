@@ -3,6 +3,9 @@
    ============================================== */
 
 const ExplorerPage = {
+  assetsData: [],
+  showAll: false,
+
   render() {
     return `
       <div class="page">
@@ -44,6 +47,14 @@ const ExplorerPage = {
               Fetching live assets from Neon PostgreSQL...
            </div>
         </div>
+
+        <!-- TOGGLE BUTTON FOR ALL ASSETS -->
+        <div style="text-align: center; margin-top: 32px;">
+          <button id="toggle-assets-btn" onclick="ExplorerPage.toggleShowAll()" style="padding:10px 24px;background:transparent;color:var(--accent);border:2px solid var(--accent);border-radius:8px;font-weight:600;cursor:pointer;display:none; transition: all 0.2s;">
+            Show All Vulnerabilities
+          </button>
+        </div>
+
       </div>
     `;
   },
@@ -51,6 +62,24 @@ const ExplorerPage = {
   toggleAddForm() {
       const form = document.getElementById('add-asset-form');
       form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  },
+
+  toggleShowAll() {
+      this.showAll = !this.showAll;
+      const btn = document.getElementById('toggle-assets-btn');
+      
+      // Animate button color
+      if (this.showAll) {
+          btn.innerText = "Show Top 12 Only";
+          btn.style.background = "var(--accent)";
+          btn.style.color = "white";
+      } else {
+          btn.innerText = "Show All Vulnerabilities";
+          btn.style.background = "transparent";
+          btn.style.color = "var(--accent)";
+      }
+      
+      this.renderGrid();
   },
 
   submitAsset() {
@@ -80,85 +109,90 @@ const ExplorerPage = {
           document.getElementById('add-status').innerText = "✅ Success! Sent to Data Pipeline. (Will sync to DB in next 30s cycle)";
           btn.innerText = "Submit to Data Pipeline";
           
-          // Clear inputs
           document.getElementById('new-asset-name').value = '';
           document.getElementById('new-cve').value = '';
       });
   },
 
   init() {
-    // Fetch Live Assets from API
-    fetch('http://127.0.0.1:5000/api/dashboard')
+    // Fetch ALL Live Assets from our new API
+    fetch('http://127.0.0.1:5000/api/assets')
       .then(res => res.json())
       .then(data => {
-          const grid = document.getElementById('live-assets-grid');
-          grid.innerHTML = ''; // Clear loading text
-          
-          // Render the top 12 risks as cards
-          data.top_risks.slice(0, 12).forEach(dbAsset => {
-              
-              // Logic to assign colors/severity based on EAL Money
-              let level = 'low';
-              if (dbAsset.expected_monthly_loss_lakhs > 50) level = 'critical';
-              else if (dbAsset.expected_monthly_loss_lakhs > 10) level = 'high';
-              else if (dbAsset.expected_monthly_loss_lakhs > 2) level = 'medium';
-
-              const ealCr = (dbAsset.expected_monthly_loss_lakhs / 100).toFixed(2);
-              const impCr = (dbAsset.financial_impact_lakhs / 100).toFixed(2);
-              const probPct = Math.round(dbAsset.probability_of_attack_per_month * 100);
-
-              const cardHTML = `
-                <div class="asset-card">
-                  <div class="asset-card-top">
-                    <div style="flex:1;min-width:0;">
-                      <div class="d-flex align-center gap-3" style="margin-bottom:8px;">
-                        <div class="asset-card-icon">
-                          <svg viewBox="0 0 24 24"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse></svg>
-                        </div>
-                        <div>
-                          <div class="asset-card-name">${dbAsset.asset_name}</div>
-                          <div class="asset-card-category">${dbAsset.asset_id}</div>
-                        </div>
-                      </div>
-                    </div>
-                    <span class="severity-badge ${level}">${level}</span>
-                  </div>
-
-                  <div style="display:flex;flex-direction:column;gap:8px;">
-                    <div class="d-flex align-center justify-between" style="font-size:11px;font-weight:500;color:var(--text-muted);">
-                      <span>Breach Likelihood</span>
-                      <span style="font-weight:700;color:var(--risk-${level});">${probPct}%</span>
-                    </div>
-                    <div class="asset-card-bar">
-                      <div class="asset-card-bar-fill" style="width:${probPct}%;background:var(--risk-${level});"></div>
-                    </div>
-                  </div>
-
-                  <div class="asset-card-stats">
-                    <div class="stat-mini">
-                      <span class="stat-mini-label">EAL</span>
-                      <span class="stat-mini-value">₹${ealCr} Cr</span>
-                    </div>
-                    <div class="stat-mini">
-                      <span class="stat-mini-label">Vulnerability</span>
-                      <span class="stat-mini-value" style="font-size:10px; color:var(--text-secondary); margin-top:4px;">${dbAsset.vulnerability_cve}</span>
-                    </div>
-                    <div class="stat-mini">
-                      <span class="stat-mini-label">Impact</span>
-                      <span class="stat-mini-value">₹${impCr} Cr</span>
-                    </div>
-                    <div class="stat-mini">
-                      <span class="stat-mini-label">Fix Cost</span>
-                      <span class="stat-mini-value">₹${dbAsset.remediation_cost_lakhs}L</span>
-                    </div>
-                  </div>
-                </div>
-              `;
-              grid.innerHTML += cardHTML;
-          });
+          this.assetsData = data.assets;
+          document.getElementById('toggle-assets-btn').style.display = 'inline-block';
+          this.renderGrid();
       })
       .catch(err => {
           document.getElementById('live-assets-grid').innerHTML = '<div style="color:var(--risk-critical); grid-column: span 3; text-align: center;">Error fetching live data. Ensure app.py is running.</div>';
+      });
+  },
+
+  renderGrid() {
+      const grid = document.getElementById('live-assets-grid');
+      grid.innerHTML = ''; 
+      
+      // If showAll is false, slice the top 12. If true, show everything!
+      const displayAssets = this.showAll ? this.assetsData : this.assetsData.slice(0, 12);
+      
+      displayAssets.forEach(dbAsset => {
+          let level = 'low';
+          if (dbAsset.expected_monthly_loss_lakhs > 50) level = 'critical';
+          else if (dbAsset.expected_monthly_loss_lakhs > 10) level = 'high';
+          else if (dbAsset.expected_monthly_loss_lakhs > 2) level = 'medium';
+
+          const ealCr = (dbAsset.expected_monthly_loss_lakhs / 100).toFixed(2);
+          const impCr = (dbAsset.financial_impact_lakhs / 100).toFixed(2);
+          const probPct = Math.round(dbAsset.probability_of_attack_per_month * 100);
+
+          const cardHTML = `
+            <div class="asset-card">
+              <div class="asset-card-top">
+                <div style="flex:1;min-width:0;">
+                  <div class="d-flex align-center gap-3" style="margin-bottom:8px;">
+                    <div class="asset-card-icon">
+                      <svg viewBox="0 0 24 24"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse></svg>
+                    </div>
+                    <div>
+                      <div class="asset-card-name">${dbAsset.asset_name}</div>
+                      <div class="asset-card-category">${dbAsset.asset_id}</div>
+                    </div>
+                  </div>
+                </div>
+                <span class="severity-badge ${level}">${level}</span>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div class="d-flex align-center justify-between" style="font-size:11px;font-weight:500;color:var(--text-muted);">
+                  <span>Breach Likelihood</span>
+                  <span style="font-weight:700;color:var(--risk-${level});">${probPct}%</span>
+                </div>
+                <div class="asset-card-bar">
+                  <div class="asset-card-bar-fill" style="width:${probPct}%;background:var(--risk-${level});"></div>
+                </div>
+              </div>
+
+              <div class="asset-card-stats">
+                <div class="stat-mini">
+                  <span class="stat-mini-label">EAL</span>
+                  <span class="stat-mini-value">₹${ealCr} Cr</span>
+                </div>
+                <div class="stat-mini">
+                  <span class="stat-mini-label">Vulnerability</span>
+                  <span class="stat-mini-value" style="font-size:10px; color:var(--text-secondary); margin-top:4px;">${dbAsset.vulnerability_cve}</span>
+                </div>
+                <div class="stat-mini">
+                  <span class="stat-mini-label">Impact</span>
+                  <span class="stat-mini-value">₹${impCr} Cr</span>
+                </div>
+                <div class="stat-mini">
+                  <span class="stat-mini-label">Fix Cost</span>
+                  <span class="stat-mini-value">₹${dbAsset.remediation_cost_lakhs}L</span>
+                </div>
+              </div>
+            </div>
+          `;
+          grid.innerHTML += cardHTML;
       });
   }
 };
