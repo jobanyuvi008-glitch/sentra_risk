@@ -82,24 +82,52 @@ def optimize_budget(budget_lakhs):
     })
 
 # ==========================================
-# 4. ADD ASSET ENDPOINT (Injects into Pipeline)
+# 4. ADD ASSET ENDPOINT
 # ==========================================
+@app.route('/api/add-asset', methods=['POST'])
+def add_asset():
+    new_asset = request.json
+    try:
+        with open('data.json', 'r') as f:
+            assets = json.load(f)
+        assets.append(new_asset)
+        with open('data.json', 'w') as f:
+            json.dump(assets, f, indent=4)
+        return jsonify({"status": "success", "message": "Asset added to pipeline!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # ==========================================
-# NEW: ALL ASSETS ENDPOINT (For Explorer)
+# 5. NEW: DELETE ASSET ENDPOINT
 # ==========================================
+@app.route('/api/delete-asset', methods=['POST'])
+def delete_asset():
+    req = request.json
+    asset_id = req.get("asset_id")
+    cve = req.get("vulnerability_cve")
+    
+    try:
+        with open('data.json', 'r') as f:
+            assets = json.load(f)
+        
+        # Keep everything EXCEPT the one the user clicked delete on
+        updated_assets = [a for a in assets if not (a.get("asset_id") == asset_id and a.get("vulnerability_cve") == cve)]
+        
+        with open('data.json', 'w') as f:
+            json.dump(updated_assets, f, indent=4)
+            
+        return jsonify({"status": "success", "message": "Asset deleted!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # ==========================================
-# NEW: ALL ASSETS ENDPOINT (For Explorer & Simulator)
+# 6. ALL ASSETS ENDPOINT
 # ==========================================
 @app.route('/api/assets', methods=['GET'])
 def get_all_assets():
     assets = load_data()
-    
-    # Calculate Total Financial Risk for all assets
     total_expected_loss = sum(float(item.get("expected_monthly_loss_lakhs", 0)) for item in assets)
-    
-    # Sort them from highest risk to lowest
     sorted_assets = sorted(assets, key=lambda x: float(x.get("expected_monthly_loss_lakhs", 0)), reverse=True)
-    
     return jsonify({
         "total": len(sorted_assets),
         "total_enterprise_risk_lakhs": round(total_expected_loss, 2),
@@ -107,23 +135,19 @@ def get_all_assets():
     })
 
 # ==========================================
-# 5. AI CHAT ENDPOINT (With Context Injection / RAG)
+# 7. AI CHAT ENDPOINT (RAG)
 # ==========================================
 @app.route('/api/chat', methods=['POST'])
 def chat():
     user_message = request.json.get("message", "")
-    
-    # 1. Fetch current live data
     assets = load_data()
     sorted_assets = sorted(assets, key=lambda x: float(x.get("expected_monthly_loss_lakhs", 0)), reverse=True)
     top_5_assets = sorted_assets[:5]
     
-    # 2. Build Context String for AI
     company_data_context = "Here is the live data for our company's top cyber risks right now:\n"
     for asset in top_5_assets:
         company_data_context += f"- Asset: {asset.get('asset_name')} | Vulnerability: {asset.get('vulnerability_cve')} | Expected Loss: {asset.get('expected_monthly_loss_lakhs')} Lakhs | Fix Cost: {asset.get('remediation_cost_lakhs')} Lakhs | Action: {asset.get('remediation_action')}\n"
     
-    # 3. FIXED INDENTATION HERE
     system_prompt = f"""
     You are Sentra AI, a friendly, business-focused Cyber Risk Advisor. 
     You are talking directly to the CISO. 
@@ -136,19 +160,12 @@ def chat():
     {company_data_context}
     """
     
-    # Check if API key is loaded
     if not GROQ_API_KEY:
-        print("❌ CRITICAL ERROR: GROQ_API_KEY is missing! Did you name your .env file correctly?")
-        return jsonify({"response": "System Error: Missing API Key. Check the Python terminal."})
+        return jsonify({"response": "System Error: Missing API Key."})
 
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    # 4. FIXED MODEL ID HERE
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     payload = {
-        "model": "openai/gpt-oss-120b",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message}
@@ -157,25 +174,12 @@ def chat():
     
     try:
         response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-        
-        # Check if Groq rejected our request
         if response.status_code != 200:
-            error_data = response.json()
-            error_msg = error_data.get("error", {}).get("message", "Unknown Groq Error")
-            print(f"❌ GROQ API ERROR: {error_msg}")
-            return jsonify({"response": f"Groq Error: {error_msg}"})
-            
-        # Success!
-        ai_text = response.json()["choices"][0]["message"]["content"]
-        return jsonify({"response": ai_text})
-        
+            return jsonify({"response": f"Groq Error: {response.json().get('error', {}).get('message', 'Unknown')}"})
+        return jsonify({"response": response.json()["choices"][0]["message"]["content"]})
     except Exception as e:
-        print(f"❌ PYTHON CRASH: {e}")
         return jsonify({"response": f"System error: {str(e)}"})
 
-# ==========================================
-# BOOT THE SERVER
-# ==========================================
 if __name__ == '__main__':
     print("🚀 Starting Flask API on http://127.0.0.1:5000")
     app.run(port=5000, debug=True)

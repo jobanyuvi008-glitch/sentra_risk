@@ -1,5 +1,5 @@
 /* ==============================================
-   PAGES/EXPLORER.JS — Risk Explorer + Add Asset
+   PAGES/EXPLORER.JS — Risk Explorer + Add/Delete Asset
    ============================================== */
 
 const ExplorerPage = {
@@ -36,7 +36,7 @@ const ExplorerPage = {
                 <option value="false">Internet Exposed: No</option>
             </select>
           </div>
-          <button onclick="ExplorerPage.submitAsset()" style="margin-top:16px;padding:10px 20px;background:var(--risk-low);color:white;border-radius:8px;font-weight:600;cursor:pointer;">Submit to Data Pipeline</button>
+          <button onclick="ExplorerPage.submitAsset(this)" style="margin-top:16px;padding:10px 20px;background:var(--risk-low);color:white;border-radius:8px;font-weight:600;cursor:pointer;">Submit to Data Pipeline</button>
           <p id="add-status" style="margin-top:10px;font-size:12px;color:var(--risk-low);"></p>
         </div>
 
@@ -68,7 +68,6 @@ const ExplorerPage = {
       this.showAll = !this.showAll;
       const btn = document.getElementById('toggle-assets-btn');
       
-      // Animate button color
       if (this.showAll) {
           btn.innerText = "Show Top 12 Only";
           btn.style.background = "var(--accent)";
@@ -82,8 +81,7 @@ const ExplorerPage = {
       this.renderGrid();
   },
 
-  submitAsset() {
-      const btn = event.target;
+  submitAsset(btn) {
       btn.innerText = "Processing...";
       
       const newAsset = {
@@ -108,14 +106,32 @@ const ExplorerPage = {
       .then(data => {
           document.getElementById('add-status').innerText = "✅ Success! Sent to Data Pipeline. (Will sync to DB in next 30s cycle)";
           btn.innerText = "Submit to Data Pipeline";
-          
           document.getElementById('new-asset-name').value = '';
           document.getElementById('new-cve').value = '';
       });
   },
 
+  // NEW: The Delete Function!
+  deleteAsset(assetId, cve, btnElement) {
+      if(!confirm(`Are you sure you want to delete vulnerability ${cve} from ${assetId}?`)) return;
+      
+      // Instantly hide the card for a fast UI experience
+      const card = btnElement.closest('.asset-card');
+      if(card) card.style.display = 'none';
+
+      // Tell Python to wipe it from the Pipeline
+      fetch('http://127.0.0.1:5000/api/delete-asset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ asset_id: assetId, vulnerability_cve: cve })
+      })
+      .then(res => res.json())
+      .then(data => {
+          console.log("Deleted from backend successfully.");
+      });
+  },
+
   init() {
-    // Fetch ALL Live Assets from our new API
     fetch('http://127.0.0.1:5000/api/assets')
       .then(res => res.json())
       .then(data => {
@@ -132,7 +148,6 @@ const ExplorerPage = {
       const grid = document.getElementById('live-assets-grid');
       grid.innerHTML = ''; 
       
-      // If showAll is false, slice the top 12. If true, show everything!
       const displayAssets = this.showAll ? this.assetsData : this.assetsData.slice(0, 12);
       
       displayAssets.forEach(dbAsset => {
@@ -159,7 +174,16 @@ const ExplorerPage = {
                     </div>
                   </div>
                 </div>
-                <span class="severity-badge ${level}">${level}</span>
+                
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <span class="severity-badge ${level}">${level}</span>
+                  
+                  <!-- THE TRASH CAN BUTTON -->
+                  <button onclick="ExplorerPage.deleteAsset('${dbAsset.asset_id}', '${dbAsset.vulnerability_cve}', this)" style="background:transparent; border:none; cursor:pointer; color:var(--text-muted); transition:color 0.2s;" onmouseover="this.style.color='var(--risk-critical)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete Asset">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                  </button>
+                  
+                </div>
               </div>
 
               <div style="display:flex;flex-direction:column;gap:8px;">
