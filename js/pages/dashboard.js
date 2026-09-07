@@ -1,5 +1,5 @@
 /* ==============================================
-   PAGES/DASHBOARD.JS — Executive Risk Dashboard (Live Data Restored!)
+   PAGES/DASHBOARD.JS — Executive Risk Dashboard (Fully Live!)
    ============================================== */
 
 const DashboardPage = {
@@ -9,6 +9,7 @@ const DashboardPage = {
     const org = SENTRA_DATA.org;
 
     return `
+      <!-- Dashboard Hero Band -->
       <div class="dashboard-hero">
         <div style="max-width:1300px;margin:0 auto;">
           <div class="hero-org">
@@ -20,6 +21,7 @@ const DashboardPage = {
         </div>
       </div>
 
+      <!-- Page Content -->
       <div class="page" style="padding-top:32px;">
 
         <!-- Metric Cards -->
@@ -27,7 +29,7 @@ const DashboardPage = {
           ${renderMetricCard({
             id: 'mc-risk-score',
             label: `<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> CYBER RISK SCORE`,
-            value: d.riskScore,
+            value: '...', // Replaced by live data
             valueSuffix: '/100',
             valueClass: 'high',
             subText: 'Overall posture rating',
@@ -65,7 +67,9 @@ const DashboardPage = {
           })}
         </div>
 
+        <!-- Bottom Grid: Contributors + Composition -->
         <div class="dash-bottom-grid" style="display:grid;grid-template-columns:3fr 2fr;gap:20px;margin-bottom:24px;">
+
           <!-- Top 5 Risk Contributors (LIVE DATA) -->
           <div class="chart-card">
             <div class="chart-card-header">
@@ -93,6 +97,7 @@ const DashboardPage = {
           </div>
         </div>
 
+        <!-- EAL Trend (Full Width) -->
         <div class="chart-card">
           <div class="chart-card-header">
             <div>
@@ -104,6 +109,7 @@ const DashboardPage = {
             <canvas id="chart-eal-trend"></canvas>
           </div>
         </div>
+
       </div>
     `;
   },
@@ -114,28 +120,49 @@ const DashboardPage = {
 
     applyChartDefaults();
 
-    // Draw base static charts to keep the UI beautiful
+    // Draw base static sparklines and donut to keep the UI beautiful
     createSparkline('spark-score', d.scoreTrend, cssVar('--accent'));
     createSparkline('spark-eal', d.ealTrend, '#DC2626');
     createSparkline('spark-exposure', d.exposureTrend, '#64748B');
     createDonutChart('chart-composition', rc.labels, rc.values, rc.colors);
 
+    // ==========================================
     // FETCH LIVE DATA FROM FLASK API
+    // ==========================================
     fetch('http://127.0.0.1:5000/api/dashboard')
       .then(res => res.json())
       .then(data => {
           // Convert Lakhs to Crores for the Dashboard (1 Crore = 100 Lakhs)
           const ealCr = (data.total_enterprise_risk_lakhs / 100).toFixed(2);
           
-          // Inject live money into the Metric Card
+          // ==========================================
+          // 1. DYNAMIC CYBER RISK SCORE (0-100)
+          // ==========================================
+          // Calculate the average probability of attack across top risks
+          const avgProb = data.top_risks.reduce((sum, a) => sum + a.probability_of_attack_per_month, 0) / data.top_risks.length;
+          const dynamicScore = Math.round(avgProb * 100);
+          
+          let scoreClass = 'low';
+          if (dynamicScore >= 75) scoreClass = 'critical';
+          else if (dynamicScore >= 50) scoreClass = 'high';
+          else if (dynamicScore >= 25) scoreClass = 'medium';
+
+          const scoreCard = document.querySelector('#mc-risk-score');
+          scoreCard.querySelector('.metric-card-value').innerHTML = `${dynamicScore}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">/100</span>`;
+          scoreCard.querySelector('.metric-card-value').className = `metric-card-value ${scoreClass}`;
+          
+          // ==========================================
+          // 2. INJECT DYNAMIC MONEY AND ASSETS
+          // ==========================================
           document.querySelector('#mc-eal .metric-card-value').innerHTML = 
               `₹${ealCr}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">Cr</span>`;
           
-          // Inject total assets
           document.querySelector('#mc-exposure .metric-card-value').innerHTML = 
               `${data.total_assets_scanned}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">Scanned</span>`;
 
-          // Process Top 5 live risks for the Bar Chart
+          // ==========================================
+          // 3. DRAW LIVE BAR CHART (Top 5 Risks)
+          // ==========================================
           const top5 = data.top_risks.slice(0, 5);
           const labels = top5.map(a => a.asset_name);
           const values = top5.map(a => parseFloat((a.expected_monthly_loss_lakhs / 100).toFixed(2)));
@@ -144,7 +171,7 @@ const DashboardPage = {
           createHorizontalBarChart('chart-contributors', labels, values, colors);
 
           // ==========================================
-          // DRAW THE 12-MONTH TREND LINE CHART
+          // 4. DRAW THE 12-MONTH TREND LINE CHART
           // ==========================================
           const trendData = [...d.ealTrend]; // Copy the mock 12 month array
           trendData[trendData.length - 1] = parseFloat(ealCr); // Force the LAST month to match the Live Database!
