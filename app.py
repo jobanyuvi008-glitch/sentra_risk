@@ -117,11 +117,16 @@ def chat():
     for asset in top_5_assets:
         company_data_context += f"- Asset: {asset.get('asset_name')} | Vulnerability: {asset.get('vulnerability_cve')} | Expected Loss: {asset.get('expected_monthly_loss_lakhs')} Lakhs | Fix Cost: {asset.get('remediation_cost_lakhs')} Lakhs | Action: {asset.get('remediation_action')}\n"
     
+    # 3. FIXED INDENTATION HERE
     system_prompt = f"""
-    You are Sentra AI, the Chief Information Security Officer's (CISO) AI assistant. 
-    Keep your answers highly professional, analytical, and strictly under 3 sentences.
-    You have access to the company's live database. If the user asks about their risks, costs, or what to fix, USE THIS EXACT DATA to answer them accurately:
+    You are Sentra AI, a friendly, business-focused Cyber Risk Advisor. 
+    You are talking directly to the CISO. 
+    RULE 1: Speak in simple, non-technical business terms. Explain things simply.
+    RULE 2: Focus ONLY on financial risk (Lakhs) and the cost to fix it. 
+    RULE 3: Do NOT just read a list of data. Summarize it naturally.
+    RULE 4: Keep your answer strictly under 3 sentences.
     
+    Here is the live data:
     {company_data_context}
     """
     
@@ -134,6 +139,8 @@ def chat():
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
+    
+    # 4. FIXED MODEL ID HERE
     payload = {
         "model": "openai/gpt-oss-120b",
         "messages": [
@@ -141,7 +148,6 @@ def chat():
             {"role": "user", "content": user_message}
         ]
     }
-    
     
     try:
         response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)

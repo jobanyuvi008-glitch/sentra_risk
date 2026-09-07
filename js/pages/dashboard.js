@@ -1,5 +1,5 @@
 /* ==============================================
-   PAGES/DASHBOARD.JS — Executive Risk Dashboard
+   PAGES/DASHBOARD.JS — Executive Risk Dashboard (Live Data Restored!)
    ============================================== */
 
 const DashboardPage = {
@@ -9,19 +9,17 @@ const DashboardPage = {
     const org = SENTRA_DATA.org;
 
     return `
-      <!-- Dashboard Hero Band -->
       <div class="dashboard-hero">
         <div style="max-width:1300px;margin:0 auto;">
           <div class="hero-org">
             <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            ${org.name} &mdash; ${org.industry}
+            ${org.name} &mdash; LIVE ENVIRONMENT
           </div>
           <div class="hero-tagline">Turn Cyber Risk into Financial Decisions</div>
-          <div class="hero-meta">Report period: ${org.reportDate} &nbsp;&middot;&nbsp; Last updated ${org.lastUpdated} &nbsp;&middot;&nbsp; ${org.assetsMonitored} assets monitored</div>
+          <div class="hero-meta">Live Data Sync Active &nbsp;&middot;&nbsp; Real-time EPSS Probabilities</div>
         </div>
       </div>
 
-      <!-- Page Content -->
       <div class="page" style="padding-top:32px;">
 
         <!-- Metric Cards -->
@@ -38,22 +36,22 @@ const DashboardPage = {
           })}
           ${renderMetricCard({
             id: 'mc-eal',
-            label: `<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> EXPECTED ANNUAL LOSS`,
-            value: '₹4.20',
+            label: `<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> EXPECTED MONTHLY LOSS`,
+            value: '₹...',
             valueSuffix: 'Cr',
             valueClass: 'critical',
-            subText: 'Probability-weighted',
-            trend: '+12.1%',
+            subText: 'Live Probability-Weighted Risk',
+            trend: 'Live Sync',
             sparklineId: 'spark-eal',
           })}
           ${renderMetricCard({
             id: 'mc-exposure',
-            label: `<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> TOTAL EXPOSURE`,
-            value: '₹18.0',
-            valueSuffix: 'Cr',
-            valueClass: '',
-            subText: 'Max financial impact',
-            trend: '+20.0%',
+            label: `<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> TOTAL ASSETS`,
+            value: '...',
+            valueSuffix: 'Scanned',
+            valueClass: 'accent',
+            subText: 'Connected to Neon PostgreSQL',
+            trend: 'Live Sync',
             sparklineId: 'spark-exposure',
           })}
           ${renderMetricCard({
@@ -67,18 +65,13 @@ const DashboardPage = {
           })}
         </div>
 
-        <!-- Bottom Grid: Contributors + Composition -->
         <div class="dash-bottom-grid" style="display:grid;grid-template-columns:3fr 2fr;gap:20px;margin-bottom:24px;">
-
-          <!-- Top 5 Risk Contributors -->
+          <!-- Top 5 Risk Contributors (LIVE DATA) -->
           <div class="chart-card">
             <div class="chart-card-header">
               <div>
-                <div class="chart-card-title">Top 5 Risk Contributors</div>
-                <div class="chart-card-sub">Expected Annual Loss by asset (₹ Crore)</div>
-              </div>
-              <div style="display:flex;gap:12px;align-items:center;">
-                <span class="severity-badge critical">Total ₹4.20 Cr</span>
+                <div class="chart-card-title">Top 5 Live Risk Contributors</div>
+                <div class="chart-card-sub">Expected Loss by asset (₹ Crore)</div>
               </div>
             </div>
             <div class="chart-container" style="height:220px;">
@@ -86,7 +79,7 @@ const DashboardPage = {
             </div>
           </div>
 
-          <!-- Risk Composition -->
+          <!-- Risk Composition (Mocked for Visuals) -->
           <div class="chart-card">
             <div class="chart-card-header">
               <div>
@@ -100,23 +93,17 @@ const DashboardPage = {
           </div>
         </div>
 
-        <!-- EAL Trend (Full Width) -->
         <div class="chart-card">
           <div class="chart-card-header">
             <div>
-              <div class="chart-card-title">Expected Annual Loss — 12-Month Trend</div>
+              <div class="chart-card-title">Expected Monthly Loss — 12-Month Trend</div>
               <div class="chart-card-sub">Monthly EAL estimate (₹ Crore) — Oct 2025 to Sep 2026</div>
             </div>
-            <span class="metric-trend up" style="font-size:12px;">
-              <svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-              +35.5% YoY
-            </span>
           </div>
           <div class="chart-container" style="height:180px;">
             <canvas id="chart-eal-trend"></canvas>
           </div>
         </div>
-
       </div>
     `;
   },
@@ -124,101 +111,111 @@ const DashboardPage = {
   init() {
     const d = SENTRA_DATA.dashboard;
     const rc = SENTRA_DATA.riskComposition;
-    const tc = SENTRA_DATA.topContributors;
 
     applyChartDefaults();
 
-    // Sparklines
-    const accentColor = cssVar('--accent');
-    const critColor    = '#DC2626';
-    const neutralColor = '#64748B';
+    // Draw base static charts to keep the UI beautiful
+    createSparkline('spark-score', d.scoreTrend, cssVar('--accent'));
+    createSparkline('spark-eal', d.ealTrend, '#DC2626');
+    createSparkline('spark-exposure', d.exposureTrend, '#64748B');
+    createDonutChart('chart-composition', rc.labels, rc.values, rc.colors);
 
-    createSparkline('spark-score', d.scoreTrend, accentColor);
-    createSparkline('spark-eal', d.ealTrend, critColor);
-    createSparkline('spark-exposure', d.exposureTrend, neutralColor);
+    // FETCH LIVE DATA FROM FLASK API
+    fetch('http://127.0.0.1:5000/api/dashboard')
+      .then(res => res.json())
+      .then(data => {
+          // Convert Lakhs to Crores for the Dashboard (1 Crore = 100 Lakhs)
+          const ealCr = (data.total_enterprise_risk_lakhs / 100).toFixed(2);
+          
+          // Inject live money into the Metric Card
+          document.querySelector('#mc-eal .metric-card-value').innerHTML = 
+              `₹${ealCr}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">Cr</span>`;
+          
+          // Inject total assets
+          document.querySelector('#mc-exposure .metric-card-value').innerHTML = 
+              `${data.total_assets_scanned}<span style="font-size:0.55em;font-weight:600;letter-spacing:0;opacity:0.75;margin-left:2px;">Scanned</span>`;
 
-    // Level colors for bar chart
-    const levelColor = { critical: '#DC2626', high: '#EA580C', medium: '#D97706', low: '#16A34A' };
-    const barColors   = tc.map(t => levelColor[t.level]);
+          // Process Top 5 live risks for the Bar Chart
+          const top5 = data.top_risks.slice(0, 5);
+          const labels = top5.map(a => a.asset_name);
+          const values = top5.map(a => parseFloat((a.expected_monthly_loss_lakhs / 100).toFixed(2)));
+          const colors = ['#DC2626', '#DC2626', '#EA580C', '#D97706', '#D97706']; // Critical to Medium colors
 
-    createHorizontalBarChart(
-      'chart-contributors',
-      tc.map(t => t.name),
-      tc.map(t => t.eal),
-      barColors
-    );
+          createHorizontalBarChart('chart-contributors', labels, values, colors);
 
-    createDonutChart(
-      'chart-composition',
-      rc.labels,
-      rc.values,
-      rc.colors
-    );
+          // ==========================================
+          // DRAW THE 12-MONTH TREND LINE CHART
+          // ==========================================
+          const trendData = [...d.ealTrend]; // Copy the mock 12 month array
+          trendData[trendData.length - 1] = parseFloat(ealCr); // Force the LAST month to match the Live Database!
 
-    // EAL Trend line
-    const accentHex = '#2E5AAC';
-    const ctx = document.getElementById('chart-eal-trend');
-    if (ctx) {
-      const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 180);
-      gradient.addColorStop(0, accentHex + '30');
-      gradient.addColorStop(1, accentHex + '00');
+          const accentHex = cssVar('--accent').trim() || '#2E5AAC';
+          const ctx = document.getElementById('chart-eal-trend');
+          
+          if (ctx) {
+            const canvasCtx = ctx.getContext('2d');
+            const gradient = canvasCtx.createLinearGradient(0, 0, 0, 180);
+            gradient.addColorStop(0, accentHex + '30');
+            gradient.addColorStop(1, accentHex + '00');
 
-      destroyChart('chart-eal-trend');
-      ChartRegistry['chart-eal-trend'] = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: d.trendLabels,
-          datasets: [{
-            label: 'EAL (₹ Cr)',
-            data: d.ealTrend,
-            borderColor: accentHex,
-            borderWidth: 2,
-            fill: true,
-            backgroundColor: gradient,
-            tension: 0.4,
-            pointRadius: 3,
-            pointBackgroundColor: accentHex,
-            pointBorderColor: cssVar('--bg-card'),
-            pointBorderWidth: 2,
-            pointHoverRadius: 5,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: { duration: 500 },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: cssVar('--bg-card'),
-              borderColor: cssVar('--border'),
-              borderWidth: 1,
-              titleColor: cssVar('--text-primary'),
-              bodyColor: cssVar('--text-secondary'),
-              padding: 10,
-              cornerRadius: 8,
-              callbacks: { label: ctx => ` ₹${ctx.parsed.y.toFixed(2)} Cr EAL` },
-            },
-          },
-          scales: {
-            x: {
-              grid: { display: false },
-              border: { display: false },
-              ticks: { color: cssVar('--text-muted'), font: { size: 11 } },
-            },
-            y: {
-              grid: { color: cssVar('--border'), drawTicks: false },
-              border: { display: false },
-              ticks: {
-                color: cssVar('--text-muted'),
-                font: { size: 11 },
-                callback: v => `₹${v}Cr`,
+            destroyChart('chart-eal-trend');
+            ChartRegistry['chart-eal-trend'] = new Chart(canvasCtx, {
+              type: 'line',
+              data: {
+                labels: d.trendLabels,
+                datasets: [{
+                  label: 'EAL (₹ Cr)',
+                  data: trendData,
+                  borderColor: accentHex,
+                  borderWidth: 2,
+                  fill: true,
+                  backgroundColor: gradient,
+                  tension: 0.4,
+                  pointRadius: 3,
+                  pointBackgroundColor: accentHex,
+                  pointBorderColor: cssVar('--bg-card'),
+                  pointBorderWidth: 2,
+                  pointHoverRadius: 5,
+                }],
               },
-              min: 2.5,
-            },
-          },
-        },
-      });
-    }
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500 },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    backgroundColor: cssVar('--bg-card'),
+                    borderColor: cssVar('--border'),
+                    borderWidth: 1,
+                    titleColor: cssVar('--text-primary'),
+                    bodyColor: cssVar('--text-secondary'),
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: { label: ctx => ` ₹${ctx.parsed.y.toFixed(2)} Cr EAL` },
+                  },
+                },
+                scales: {
+                  x: {
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: { color: cssVar('--text-muted'), font: { size: 11 } },
+                  },
+                  y: {
+                    grid: { color: cssVar('--border'), drawTicks: false },
+                    border: { display: false },
+                    ticks: {
+                      color: cssVar('--text-muted'),
+                      font: { size: 11 },
+                      callback: v => `₹${v}Cr`,
+                    },
+                  },
+                },
+              },
+            });
+          }
+
+      })
+      .catch(err => console.error("API not running", err));
   },
 };

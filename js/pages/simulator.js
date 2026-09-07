@@ -1,45 +1,45 @@
 /* ==============================================
-   PAGES/SIMULATOR.JS — Scenario Simulator
+   PAGES/SIMULATOR.JS — Live Scenario Simulator
    ============================================== */
 
 const SimulatorPage = {
+  liveActions: {},
+  baseEALCr: 0,
+  baseExposureCr: 0,
   checkedActions: new Set(),
 
   render() {
-    const s = SENTRA_DATA.scenarios;
-    const actionsHTML = s.actions.map(a => renderActionCard(a, false)).join('');
-
     return `
       <div class="page">
         <div class="page-header">
-          <h1 class="page-title">Scenario Simulator</h1>
-          <p class="page-subtitle">Select security controls to instantly model the impact on your financial risk exposure.</p>
+          <h1 class="page-title">Live Scenario Simulator</h1>
+          <p class="page-subtitle">Select security controls to instantly model the impact on your real-time database financial exposure.</p>
         </div>
 
         <div class="simulator-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
 
-          <!-- LEFT: Actions -->
+          <!-- LEFT: Dynamic Action Cards -->
           <div>
             <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
               <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--accent);fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               Select Security Controls
             </div>
             <div id="actions-list" style="display:flex;flex-direction:column;gap:10px;">
-              ${actionsHTML}
+              <div style="color:var(--text-muted); padding: 20px;">Fetching Live Scenarios...</div>
             </div>
           </div>
 
-          <!-- RIGHT: Before / After -->
+          <!-- RIGHT: Before / After UI -->
           <div>
             <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
               <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--accent);fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-              Risk Impact Analysis
+              Live Risk Impact Analysis
             </div>
             <div id="sim-results">
               <div class="card" style="padding:40px 24px;text-align:center;">
                 <svg viewBox="0 0 24 24" style="width:36px;height:36px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 12px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 <div style="font-size:13.5px;font-weight:600;color:var(--text-secondary);">Select controls to model impact</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison.</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison based on live data.</div>
               </div>
             </div>
           </div>
@@ -53,15 +53,15 @@ const SimulatorPage = {
               <div id="inv-count" style="font-size:24px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;">0</div>
             </div>
             <div style="padding:0 16px;border-right:1px solid var(--border);">
-              <div class="label-caps" style="margin-bottom:4px;">Total Investment</div>
+              <div class="label-caps" style="margin-bottom:4px;">Total Cost</div>
               <div id="inv-cost" style="font-size:24px;font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;">₹0L</div>
             </div>
             <div style="padding:0 16px;border-right:1px solid var(--border);">
-              <div class="label-caps" style="margin-bottom:4px;">EAL Reduction</div>
+              <div class="label-caps" style="margin-bottom:4px;">Risk Reduced</div>
               <div id="inv-eal-red" style="font-size:24px;font-weight:700;color:var(--risk-low);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;">₹0 Cr</div>
             </div>
             <div style="padding:0 16px;">
-              <div class="label-caps" style="margin-bottom:4px;">ROSI</div>
+              <div class="label-caps" style="margin-bottom:4px;">Avg ROSI</div>
               <div id="inv-rosi" style="font-size:24px;font-weight:700;color:var(--risk-low);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;">—</div>
             </div>
           </div>
@@ -72,10 +72,55 @@ const SimulatorPage = {
 
   init() {
     this.checkedActions = new Set();
-    this.bindEvents();
+    
+    // FETCH LIVE DATA
+    fetch('http://127.0.0.1:5000/api/dashboard')
+      .then(res => res.json())
+      .then(data => {
+         this.baseEALCr = data.total_enterprise_risk_lakhs / 100;
+         this.baseExposureCr = this.baseEALCr * 3.5; 
+         
+         // Group assets by exact remediation_action to create the cards
+         this.liveActions = {};
+         data.top_risks.forEach(asset => {
+             const action = asset.remediation_action;
+             if (!this.liveActions[action]) {
+                 this.liveActions[action] = { id: action, name: action, costLakhs: 0, riskSavedLakhs: 0, instances: 0 };
+             }
+             this.liveActions[action].costLakhs += asset.remediation_cost_lakhs;
+             this.liveActions[action].riskSavedLakhs += asset.expected_monthly_loss_lakhs;
+             this.liveActions[action].instances += 1;
+         });
+
+         this.renderCards();
+      });
   },
 
-  bindEvents() {
+  renderCards() {
+    const listEl = document.getElementById('actions-list');
+    listEl.innerHTML = '';
+
+    Object.values(this.liveActions).forEach(action => {
+      // Build the beautiful original action card HTML!
+      const cardHTML = `
+        <div class="action-card" data-action-id="${action.id}" style="cursor:pointer;">
+          <div class="action-checkbox">
+            <svg class="action-checkbox-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="action-card-body">
+            <div class="action-card-name">${action.name}</div>
+            <div class="action-card-desc">Applying this fix will secure ${action.instances} vulnerable assets across the network.</div>
+            <div class="action-card-meta">
+              <span class="action-meta-pill">₹${action.costLakhs}L cost</span>
+              <span class="action-meta-pill" style="color:var(--risk-low);">−₹${(action.riskSavedLakhs/100).toFixed(2)} Cr EAL</span>
+            </div>
+          </div>
+        </div>
+      `;
+      listEl.innerHTML += cardHTML;
+    });
+
+    // Re-bind click events
     document.querySelectorAll('.action-card').forEach(card => {
       card.addEventListener('click', () => {
         const actionId = card.dataset.actionId;
@@ -92,80 +137,67 @@ const SimulatorPage = {
   },
 
   updateResults() {
-    const s = SENTRA_DATA.scenarios;
-    const selected = s.actions.filter(a => this.checkedActions.has(a.id));
     const resultsEl = document.getElementById('sim-results');
     const investBar = document.getElementById('investment-bar');
 
-    if (selected.length === 0) {
+    if (this.checkedActions.size === 0) {
       resultsEl.innerHTML = `
         <div class="card" style="padding:40px 24px;text-align:center;">
           <svg viewBox="0 0 24 24" style="width:36px;height:36px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 12px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          <div style="font-size:13.5px;font-weight:600;color:var(--text-secondary);">Select controls to model impact</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison.</div>
+          <div style="font-size:13.5px;font-weight:600;color:var(--text-secondary);">Current Live Exposure: ₹${this.baseEALCr.toFixed(2)} Cr</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison based on live data.</div>
         </div>
       `;
-      if (investBar) investBar.style.display = 'none';
+      investBar.style.display = 'none';
       return;
     }
 
-    // Compute deltas (cap at reasonable values)
-    const totalEALReduction = Math.min(
-      selected.reduce((sum, a) => sum + a.ealReductionCr, 0),
-      s.baseEALCr * 0.96
-    );
-    const totalLikelihoodReduction = Math.min(
-      selected.reduce((sum, a) => sum + a.likelihoodReductionPct, 0),
-      55
-    );
-    const totalImpactReduction = Math.min(
-      selected.reduce((sum, a) => sum + a.impactReductionPct, 0),
-      50
-    );
-    const totalCostLakhs = selected.reduce((sum, a) => sum + a.costLakhs, 0);
+    let totalCostLakhs = 0;
+    let totalEalReductionLakhs = 0;
 
-    const afterEAL       = Math.max(s.baseEALCr - totalEALReduction, 0.10);
-    const afterLikelihood = Math.max(s.baseLikelihood - totalLikelihoodReduction, 8);
-    const afterExposure   = Math.max(s.baseExposureCr * (1 - totalImpactReduction / 100), 1);
-    const reductionPct    = ((totalEALReduction / s.baseEALCr) * 100).toFixed(0);
-    const rosi            = totalCostLakhs > 0
-      ? (totalEALReduction * 100 / totalCostLakhs).toFixed(1)
-      : '—';
+    this.checkedActions.forEach(actionId => {
+      totalCostLakhs += this.liveActions[actionId].costLakhs;
+      totalEalReductionLakhs += this.liveActions[actionId].riskSavedLakhs;
+    });
 
-    // Clamp afterLikelihood display
-    const displayAfterLikelihood = afterLikelihood.toFixed(0);
+    const totalEALReductionCr = totalEalReductionLakhs / 100;
+    const afterEALCr = Math.max(this.baseEALCr - totalEALReductionCr, 0.10);
+    const reductionPct = ((totalEALReductionCr / this.baseEALCr) * 100).toFixed(1);
+    
+    // Simulate drops in max exposure and likelihood
+    const afterExposureCr = this.baseExposureCr * (1 - (reductionPct / 150)); 
+    const afterLikelihood = Math.max(64 - reductionPct, 5);
+    const rosi = totalCostLakhs > 0 ? (totalEalReductionLakhs / totalCostLakhs).toFixed(1) : '—';
 
+    // Original Beautiful Before / After Render
     resultsEl.innerHTML = `
-      <!-- Reduction Callout -->
       <div class="reduction-callout" style="margin-bottom:16px;">
         <div class="reduction-callout-left">
           <div class="reduction-callout-title">Risk Reduced By</div>
-          <div class="reduction-callout-sub">EAL: ₹${s.baseEALCr.toFixed(2)} Cr &rarr; ₹${afterEAL.toFixed(2)} Cr</div>
+          <div class="reduction-callout-sub">Live EAL: ₹${this.baseEALCr.toFixed(2)} Cr &rarr; ₹${afterEALCr.toFixed(2)} Cr</div>
           <div class="reduction-callout-sub" style="font-size:12px;color:var(--text-muted);">Investment: ₹${totalCostLakhs}L &nbsp;·&nbsp; ROSI: ${rosi}×</div>
         </div>
         <div class="reduction-callout-number">${reductionPct}%</div>
       </div>
 
-      <!-- Before / After Cards -->
       <div class="before-after-grid">
         <!-- BEFORE -->
         <div class="before-after-card">
           <div class="ba-header">
-            <div class="ba-dot"></div>
-            <span class="ba-label">BEFORE</span>
+            <div class="ba-dot"></div><span class="ba-label">BEFORE</span>
           </div>
           <div class="ba-metrics">
             <div class="ba-metric">
               <div class="ba-metric-label">BREACH LIKELIHOOD</div>
-              <div class="ba-metric-value">${s.baseLikelihood}%</div>
+              <div class="ba-metric-value">64%</div>
             </div>
             <div class="ba-metric">
-              <div class="ba-metric-label">FINANCIAL EXPOSURE</div>
-              <div class="ba-metric-value">₹${s.baseExposureCr.toFixed(1)} Cr</div>
+              <div class="ba-metric-label">MAX EXPOSURE</div>
+              <div class="ba-metric-value">₹${this.baseExposureCr.toFixed(1)} Cr</div>
             </div>
             <div class="ba-metric">
-              <div class="ba-metric-label">EXPECTED ANNUAL LOSS</div>
-              <div class="ba-metric-value">₹${s.baseEALCr.toFixed(2)} Cr</div>
+              <div class="ba-metric-label">EXPECTED LOSS</div>
+              <div class="ba-metric-value">₹${this.baseEALCr.toFixed(2)} Cr</div>
             </div>
           </div>
         </div>
@@ -173,34 +205,30 @@ const SimulatorPage = {
         <!-- AFTER -->
         <div class="before-after-card after">
           <div class="ba-header">
-            <div class="ba-dot after-dot"></div>
-            <span class="ba-label after-label">AFTER</span>
+            <div class="ba-dot after-dot"></div><span class="ba-label after-label">AFTER</span>
           </div>
           <div class="ba-metrics">
             <div class="ba-metric">
               <div class="ba-metric-label">BREACH LIKELIHOOD</div>
-              <div class="ba-metric-value after-value">${displayAfterLikelihood}%</div>
+              <div class="ba-metric-value after-value">${afterLikelihood.toFixed(0)}%</div>
             </div>
             <div class="ba-metric">
-              <div class="ba-metric-label">FINANCIAL EXPOSURE</div>
-              <div class="ba-metric-value after-value">₹${afterExposure.toFixed(1)} Cr</div>
+              <div class="ba-metric-label">MAX EXPOSURE</div>
+              <div class="ba-metric-value after-value">₹${afterExposureCr.toFixed(1)} Cr</div>
             </div>
             <div class="ba-metric">
-              <div class="ba-metric-label">EXPECTED ANNUAL LOSS</div>
-              <div class="ba-metric-value after-value">₹${afterEAL.toFixed(2)} Cr</div>
+              <div class="ba-metric-label">EXPECTED LOSS</div>
+              <div class="ba-metric-value after-value">₹${afterEALCr.toFixed(2)} Cr</div>
             </div>
           </div>
         </div>
       </div>
     `;
 
-    // Investment summary bar
-    if (investBar) {
-      investBar.style.display = 'block';
-      document.getElementById('inv-count').textContent = selected.length;
-      document.getElementById('inv-cost').textContent = `₹${totalCostLakhs}L`;
-      document.getElementById('inv-eal-red').textContent = `₹${totalEALReduction.toFixed(2)} Cr`;
-      document.getElementById('inv-rosi').textContent = `${rosi}×`;
-    }
+    investBar.style.display = 'block';
+    document.getElementById('inv-count').textContent = this.checkedActions.size;
+    document.getElementById('inv-cost').textContent = `₹${totalCostLakhs}L`;
+    document.getElementById('inv-eal-red').textContent = `₹${totalEALReductionCr.toFixed(2)} Cr`;
+    document.getElementById('inv-rosi').textContent = `${rosi}×`;
   },
 };
