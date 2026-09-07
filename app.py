@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+# This explicitly tells Flask to allow any website on the internet to read its data
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Fetch variables securely from the system environment
 DATABASE_URL = os.getenv("DATABASE_URL")
