@@ -1,10 +1,11 @@
 /* ==============================================
-   PAGES/EXPLORER.JS — Risk Explorer + ML + Add/Delete
+   PAGES/EXPLORER.JS — Risk Explorer + ML + Add/Delete + Search
    ============================================== */
 
 const ExplorerPage = {
   assetsData: [],
   showAll: false,
+  searchQuery: "", // NEW: Track the search text
 
   render() {
     return `
@@ -13,9 +14,9 @@ const ExplorerPage = {
           <div class="page-header-row">
             <div>
               <h1 class="page-title">Live Risk Explorer</h1>
-              <p class="page-subtitle">View live monitored assets from Neon PostgreSQL or inject a new simulated asset.</p>
+              <p class="page-subtitle">View live monitored assets, run ML clustering, or inject a simulated asset.</p>
             </div>
-            <button onclick="ExplorerPage.toggleAddForm()" style="padding:10px 20px;background:var(--accent);color:white;border-radius:8px;font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <button onclick="ExplorerPage.toggleAddForm()" style="padding:10px 20px;background:var(--accent);color:white;border-radius:8px;font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow: 0 4px 12px rgba(46, 90, 172, 0.2);">
               <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:white;fill:none;stroke-width:2;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               Add Custom Asset
             </button>
@@ -38,6 +39,12 @@ const ExplorerPage = {
           </div>
           <button onclick="ExplorerPage.submitAsset(this)" style="margin-top:16px;padding:10px 20px;background:var(--risk-low);color:white;border-radius:8px;font-weight:600;cursor:pointer;">Submit to Data Pipeline</button>
           <p id="add-status" style="margin-top:10px;font-size:12px;color:var(--risk-low);"></p>
+        </div>
+
+        <!-- 🔍 NEW: SEARCH BAR -->
+        <div style="margin-bottom: 24px; position: relative;">
+            <svg style="position: absolute; left: 14px; top: 12px; width: 18px; height: 18px; stroke: var(--text-muted); fill: none; stroke-width: 2;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="asset-search" placeholder="Search by asset name, ID, or CVE vulnerability..." autocomplete="off" style="width: 100%; padding: 12px 12px 12px 42px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--bg-card); color: var(--text-primary); font-size: 14px; outline: none; box-shadow: var(--shadow-card); transition: box-shadow 0.2s, border-color 0.2s;">
         </div>
 
         <!-- ASSET GRID (Live Data goes here) -->
@@ -102,7 +109,7 @@ const ExplorerPage = {
           "remediation_action": "Apply standard patches"
       };
 
-      fetch('https://sentra-risk.onrender.com/api/add-asset', {
+      fetch('https://sentra-risk-backend.onrender.com/api/add-asset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newAsset)
@@ -122,7 +129,7 @@ const ExplorerPage = {
       const card = btnElement.closest('.asset-card');
       if(card) card.style.display = 'none';
 
-      fetch('https://sentra-risk.onrender.com/api/delete-asset', {
+      fetch('https://sentra-risk-backend.onrender.com/api/delete-asset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ asset_id: assetId, vulnerability_cve: cve })
@@ -134,7 +141,21 @@ const ExplorerPage = {
   },
 
   init() {
-    fetch('https://sentra-risk.onrender.com/api/assets')
+    // Search Bar Input Event
+    const searchInput = document.getElementById('asset-search');
+    if (searchInput) {
+        // Styling focus state
+        searchInput.addEventListener('focus', () => searchInput.style.borderColor = 'var(--accent)');
+        searchInput.addEventListener('blur', () => searchInput.style.borderColor = 'var(--border-strong)');
+        
+        // Listen for typing
+        searchInput.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.toLowerCase().trim();
+            this.renderGrid();
+        });
+    }
+
+    fetch('https://sentra-risk-backend.onrender.com/api/assets')
       .then(res => res.json())
       .then(data => {
           this.assetsData = data.assets;
@@ -150,20 +171,57 @@ const ExplorerPage = {
       const grid = document.getElementById('live-assets-grid');
       grid.innerHTML = ''; 
       
-      const displayAssets = this.showAll ? this.assetsData : this.assetsData.slice(0, 12);
+      // Check if ML was run
+      const hasML = this.assetsData.length > 0 && this.assetsData[0].ml_prediction;
       
+      if (hasML) {
+          grid.innerHTML += `<div style="grid-column: span 3; padding: 15px; background:var(--accent-subtle); color:var(--accent); border-radius:8px; margin-bottom:10px; font-weight:600;">🧠 AI Engine applied Unsupervised K-Means clustering across 3 dimensions (CVSS, Impact, Probability).</div>`;
+      }
+
+      // 1. FILTER THE DATA (By Search Query)
+      let displayAssets = this.assetsData;
+      
+      if (this.searchQuery) {
+          displayAssets = displayAssets.filter(a => 
+              (a.asset_name && a.asset_name.toLowerCase().includes(this.searchQuery)) ||
+              (a.asset_id && a.asset_id.toLowerCase().includes(this.searchQuery)) ||
+              (a.vulnerability_cve && a.vulnerability_cve.toLowerCase().includes(this.searchQuery))
+          );
+      } else {
+          // If no search query, apply the Top 12 logic
+          displayAssets = this.showAll ? displayAssets : displayAssets.slice(0, 12);
+      }
+
+      // If search yields no results
+      if (displayAssets.length === 0) {
+          grid.innerHTML += `<div style="grid-column: span 3; text-align: center; color: var(--text-muted); padding: 40px;">No assets found matching "${this.searchQuery}".</div>`;
+          return;
+      }
+      
+      // 2. DRAW THE CARDS
       displayAssets.forEach(dbAsset => {
           let level = 'low';
-          if (dbAsset.expected_monthly_loss_lakhs > 50) level = 'critical';
-          else if (dbAsset.expected_monthly_loss_lakhs > 10) level = 'high';
-          else if (dbAsset.expected_monthly_loss_lakhs > 2) level = 'medium';
+          let mlBorder = '';
+          let mlBadgeName = '';
+
+          // Determine styling based on whether ML clustering ran
+          if (dbAsset.ml_prediction) {
+              level = dbAsset.ml_prediction.color;
+              mlBadgeName = dbAsset.ml_prediction.tier;
+              mlBorder = `border: 2px solid var(--risk-${level}-border);`;
+          } else {
+              if (dbAsset.expected_monthly_loss_lakhs > 50) level = 'critical';
+              else if (dbAsset.expected_monthly_loss_lakhs > 10) level = 'high';
+              else if (dbAsset.expected_monthly_loss_lakhs > 2) level = 'medium';
+              mlBadgeName = level;
+          }
 
           const ealCr = (dbAsset.expected_monthly_loss_lakhs / 100).toFixed(2);
           const impCr = (dbAsset.financial_impact_lakhs / 100).toFixed(2);
           const probPct = Math.round(dbAsset.probability_of_attack_per_month * 100);
 
           const cardHTML = `
-            <div class="asset-card">
+            <div class="asset-card" style="${mlBorder}">
               <div class="asset-card-top">
                 <div style="flex:1;min-width:0;">
                   <div class="d-flex align-center gap-3" style="margin-bottom:8px;">
@@ -178,9 +236,8 @@ const ExplorerPage = {
                 </div>
                 
                 <div style="display:flex; gap:8px; align-items:center;">
-                  <span class="severity-badge ${level}">${level}</span>
+                  <span class="severity-badge ${level}">${mlBadgeName}</span>
                   
-                  <!-- THE TRASH CAN BUTTON -->
                   <button onclick="ExplorerPage.deleteAsset('${dbAsset.asset_id}', '${dbAsset.vulnerability_cve}', this)" style="background:transparent; border:none; cursor:pointer; color:var(--text-muted); transition:color 0.2s;" onmouseover="this.style.color='var(--risk-critical)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete Asset">
                     <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                   </button>
@@ -188,6 +245,7 @@ const ExplorerPage = {
                 </div>
               </div>
 
+              ${!dbAsset.ml_prediction ? `
               <div style="display:flex;flex-direction:column;gap:8px;">
                 <div class="d-flex align-center justify-between" style="font-size:11px;font-weight:500;color:var(--text-muted);">
                   <span>Breach Likelihood</span>
@@ -196,9 +254,9 @@ const ExplorerPage = {
                 <div class="asset-card-bar">
                   <div class="asset-card-bar-fill" style="width:${probPct}%;background:var(--risk-${level});"></div>
                 </div>
-              </div>
+              </div>` : ''}
 
-              <div class="asset-card-stats">
+              <div class="asset-card-stats" style="${dbAsset.ml_prediction ? 'margin-top:16px;' : ''}">
                 <div class="stat-mini">
                   <span class="stat-mini-label">EAL</span>
                   <span class="stat-mini-value">₹${ealCr} Cr</span>
@@ -207,6 +265,8 @@ const ExplorerPage = {
                   <span class="stat-mini-label">Vulnerability</span>
                   <span class="stat-mini-value" style="font-size:10px; color:var(--text-secondary); margin-top:4px;">${dbAsset.vulnerability_cve}</span>
                 </div>
+                
+                ${!dbAsset.ml_prediction ? `
                 <div class="stat-mini">
                   <span class="stat-mini-label">Impact</span>
                   <span class="stat-mini-value">₹${impCr} Cr</span>
@@ -214,7 +274,7 @@ const ExplorerPage = {
                 <div class="stat-mini">
                   <span class="stat-mini-label">Fix Cost</span>
                   <span class="stat-mini-value">₹${dbAsset.remediation_cost_lakhs}L</span>
-                </div>
+                </div>` : ''}
               </div>
             </div>
           `;
@@ -229,7 +289,7 @@ const ExplorerPage = {
       const btn = document.getElementById('run-ml-btn');
       btn.innerHTML = 'Running K-Means Model...';
       
-      fetch('https://sentra-risk.onrender.com/api/ml-clusters') 
+      fetch('https://sentra-risk-backend.onrender.com/api/ml-clusters') 
       .then(res => res.json())
       .then(data => {
           this.assetsData = data.assets;
@@ -241,40 +301,8 @@ const ExplorerPage = {
           btn.style.background = 'var(--risk-low)';
           btn.style.borderColor = 'var(--risk-low)';
           
-          // Render the grid with the new ML tags
-          const grid = document.getElementById('live-assets-grid');
-          grid.innerHTML = `<div style="grid-column: span 3; padding: 15px; background:var(--accent-subtle); color:var(--accent); border-radius:8px; margin-bottom:10px; font-weight:600;">🧠 AI Engine applied Unsupervised K-Means clustering across 3 dimensions (CVSS, Impact, Probability).</div>`;
-          
-          this.assetsData.forEach(dbAsset => {
-              const ealCr = (dbAsset.expected_monthly_loss_lakhs / 100).toFixed(2);
-              const mlTier = dbAsset.ml_prediction.tier;
-              const mlColor = dbAsset.ml_prediction.color;
-
-              grid.innerHTML += `
-                <div class="asset-card" style="border: 2px solid var(--risk-${mlColor}-border);">
-                  <div class="asset-card-top">
-                    <div>
-                      <div class="asset-card-name">${dbAsset.asset_name}</div>
-                      <div class="severity-badge ${mlColor}" style="margin-top:8px;">${mlTier}</div>
-                    </div>
-                    <!-- TRASH CAN BUTTON FOR ML VIEW -->
-                    <button onclick="ExplorerPage.deleteAsset('${dbAsset.asset_id}', '${dbAsset.vulnerability_cve}', this)" style="background:transparent; border:none; cursor:pointer; color:var(--text-muted); transition:color 0.2s;" onmouseover="this.style.color='var(--risk-critical)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete Asset">
-                      <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
-                  </div>
-                  <div class="asset-card-stats" style="margin-top:16px;">
-                    <div class="stat-mini">
-                      <span class="stat-mini-label">EAL</span>
-                      <span class="stat-mini-value">₹${ealCr} Cr</span>
-                    </div>
-                    <div class="stat-mini">
-                      <span class="stat-mini-label">Vulnerability</span>
-                      <span class="stat-mini-value" style="font-size:10px;">${dbAsset.vulnerability_cve}</span>
-                    </div>
-                  </div>
-                </div>
-              `;
-          });
+          // Re-render the grid (which now safely handles ML tags AND searching simultaneously!)
+          this.renderGrid();
       })
       .catch(err => alert("ML Engine Error: Ensure your Python API is running correctly."));
   }
