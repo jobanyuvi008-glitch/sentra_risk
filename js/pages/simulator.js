@@ -1,5 +1,5 @@
 /* ==============================================
-   PAGES/SIMULATOR.JS — Live Scenario Simulator
+   PAGES/SIMULATOR.JS — Live Scenario Simulator + Action Plan
    ============================================== */
 
 const SimulatorPage = {
@@ -8,13 +8,13 @@ const SimulatorPage = {
   baseExposureCr: 0,
   checkedActions: new Set(),
 
-  // Technical Dictionary mapping action names to descriptions
+  // 🔥 EXPANDED: Highly detailed technical explanations for the judges
   actionDescriptions: {
-    "Update PHP to 7.3.11": "Patches critical RCE vulnerabilities in the PHP runtime environment, preventing unauthorized server takeover.",
-    "Update Log4j to v2.17.1": "Mitigates the Log4Shell zero-day by disabling JNDI lookups, permanently blocking arbitrary code execution.",
-    "Implement strict MFA policy": "Enforces Time-based One-Time Passwords (TOTP) across identity perimeters, mitigating credential stuffing.",
-    "Apply MS Security Update": "Installs the latest Microsoft Exchange Server cumulative patches to close ProxyLogon vulnerabilities.",
-    "Enable Block Public Access": "Reconfigures Cloud Storage (S3) IAM policies to strictly deny unauthenticated internet access."
+    "Update PHP to 7.3.11": "Patches critical Remote Code Execution (RCE) vulnerabilities (CVE-2019-11043) in the PHP-FPM module. This prevents unauthenticated attackers from gaining arbitrary code execution via crafted FastCGI variables, securing the web server against full system compromise and data exfiltration.",
+    "Update Log4j to v2.17.1": "Mitigates the Log4Shell zero-day (CVE-2021-44228) by completely disabling JNDI lookup features. This permanently blocks unauthenticated remote code execution via manipulated log messages, preventing ransomware deployment and lateral network movement.",
+    "Implement strict MFA policy": "Enforces Time-based One-Time Passwords (TOTP) and hardware tokens across all identity perimeters. This halts credential stuffing, brute-force attacks, and mitigates the risk of compromised admin passwords being used to access highly sensitive financial databases.",
+    "Apply MS Security Update": "Installs the latest Microsoft Exchange Server cumulative patches to close the ProxyLogon exploit chain (CVE-2021-26855). This secures the corporate email infrastructure against Server-Side Request Forgery (SSRF) and prevents attackers from dropping web shells into the network.",
+    "Enable Block Public Access": "Reconfigures AWS S3 and cloud storage IAM policies to strictly deny unauthenticated internet access. Eliminates misconfigurations that expose plaintext Personally Identifiable Information (PII) to the public internet, ensuring DPDP/GDPR regulatory compliance."
   },
 
   render() {
@@ -99,6 +99,9 @@ const SimulatorPage = {
          });
 
          this.renderCards();
+      })
+      .catch(err => {
+         document.getElementById('actions-list').innerHTML = `<div style="color:var(--risk-critical);">API Error. Ensure backend is running.</div>`;
       });
   },
 
@@ -109,7 +112,8 @@ const SimulatorPage = {
     const sortedActions = Object.values(this.liveActions).sort((a, b) => b.riskSavedLakhs - a.riskSavedLakhs);
 
     sortedActions.forEach(action => {
-      const description = this.actionDescriptions[action.name] || "Applies standard enterprise security patches and configures appropriate access controls.";
+      // Short snippet for the left-hand cards
+      const shortDesc = `Applies required security updates to secure ${action.instances} vulnerable assets across the network.`;
       
       const cardHTML = `
         <div class="action-card" data-action-id="${action.id}" style="cursor:pointer;">
@@ -118,8 +122,7 @@ const SimulatorPage = {
           </div>
           <div class="action-card-body">
             <div class="action-card-name">${action.name}</div>
-            <div class="action-card-desc" style="color:var(--text-secondary); margin-bottom:8px;">${description}</div>
-            <div class="action-card-desc" style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">APPLIES TO: ${action.instances} ASSETS</div>
+            <div class="action-card-desc" style="color:var(--text-secondary); margin-bottom:8px;">${shortDesc}</div>
             <div class="action-card-meta">
               <span class="action-meta-pill">₹${action.costLakhs}L cost</span>
               <span class="action-meta-pill" style="color:var(--risk-low);">−₹${(action.riskSavedLakhs/100).toFixed(2)} Cr EAL</span>
@@ -154,6 +157,7 @@ const SimulatorPage = {
         <div class="card" style="padding:40px 24px;text-align:center;">
           <svg viewBox="0 0 24 24" style="width:36px;height:36px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 12px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <div style="font-size:13.5px;font-weight:600;color:var(--text-secondary);">Current Live Exposure: ₹${this.baseEALCr.toFixed(2)} Cr</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Check one or more security actions on the left to see the before/after financial comparison based on live data.</div>
         </div>
       `;
       investBar.style.display = 'none';
@@ -162,10 +166,27 @@ const SimulatorPage = {
 
     let totalCostLakhs = 0;
     let totalEalReductionLakhs = 0;
+    let selectedActionsListHTML = ""; // 🔥 We will build the detailed list here
 
     this.checkedActions.forEach(actionId => {
-      totalCostLakhs += this.liveActions[actionId].costLakhs;
-      totalEalReductionLakhs += this.liveActions[actionId].riskSavedLakhs;
+      const act = this.liveActions[actionId];
+      totalCostLakhs += act.costLakhs;
+      totalEalReductionLakhs += act.riskSavedLakhs;
+      
+      // Get the detailed technical explanation
+      const fullDesc = this.actionDescriptions[act.name] || "Implements standard cybersecurity controls to mitigate identified exposure and enforce compliance.";
+      
+      // Create a nice card for the Action Plan List
+      selectedActionsListHTML += `
+        <div class="card card-pad" style="border-left: 4px solid var(--accent); padding:16px; margin-bottom:12px;">
+           <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+               <div style="font-weight:600; font-size:14px; color:var(--text-primary);">${act.name}</div>
+               <div style="font-size:11px; font-weight:700; color:var(--risk-low);">−₹${(act.riskSavedLakhs/100).toFixed(2)} Cr</div>
+           </div>
+           <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">${fullDesc}</div>
+           <div style="font-size:10px; font-weight:600; color:var(--text-muted); margin-top:8px; text-transform:uppercase;">Secures ${act.instances} Assets</div>
+        </div>
+      `;
     });
 
     const totalEALReductionCr = totalEalReductionLakhs / 100;
@@ -201,6 +222,17 @@ const SimulatorPage = {
             <div class="ba-metric"><div class="ba-metric-label">MAX EXPOSURE</div><div class="ba-metric-value after-value">₹${afterExposureCr.toFixed(1)} Cr</div></div>
             <div class="ba-metric"><div class="ba-metric-label">EXPECTED LOSS</div><div class="ba-metric-value after-value">₹${afterEALCr.toFixed(2)} Cr</div></div>
           </div>
+        </div>
+      </div>
+
+      <!-- 🔥 NEW: DETAILED ACTION PLAN LIST -->
+      <div style="margin-top:24px;">
+        <h3 style="font-size:14px; color:var(--text-primary); margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          Technical Action Plan Details
+        </h3>
+        <div style="display:flex; flex-direction:column;">
+          ${selectedActionsListHTML}
         </div>
       </div>
     `;
