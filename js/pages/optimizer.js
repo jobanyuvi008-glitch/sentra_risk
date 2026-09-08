@@ -1,5 +1,5 @@
 /* ==============================================
-   PAGES/OPTIMIZER.JS — Live Investment Optimizer
+   PAGES/OPTIMIZER.JS — Live Investment Optimizer + Tech Details
    ============================================== */
 
 const OptimizerPage = {
@@ -54,7 +54,7 @@ const OptimizerPage = {
 
   init() {
     // Get Base EAL from Live Dashboard API for progress bar math
-    fetch('https://sentra-risk.onrender.com/api/dashboard')
+    fetch('https://sentra-risk-backend.onrender.com/api/dashboard')
       .then(res => res.json())
       .then(data => { this.baseEAL = data.total_enterprise_risk_lakhs; });
 
@@ -81,7 +81,7 @@ const OptimizerPage = {
 
     resultsEl.innerHTML = '<div style="text-align:center; padding: 40px; color:var(--text-muted);">Running Knapsack Algorithm...</div>';
 
-    fetch(`https://sentra-risk.onrender.com/api/optimize/${budgetLakhs}`)
+    fetch(`https://sentra-risk-backend.onrender.com/api/optimize/${budgetLakhs}`)
       .then(res => res.json())
       .then(data => {
         if (!data.recommended_actions || data.recommended_actions.length === 0) {
@@ -103,16 +103,31 @@ const OptimizerPage = {
           </div>
         `;
 
-        // Render Rows using original UI Classes
+        // ==========================================
+        // TECHNICAL DICTIONARY FOR SOLUTIONS
+        // ==========================================
+        const actionDetails = {
+            "Update PHP to 7.3.11": "Patches critical Remote Code Execution (RCE) vulnerabilities in the PHP runtime environment, preventing unauthorized server takeover.",
+            "Update Log4j to v2.17.1": "Mitigates the Log4Shell zero-day by disabling JNDI lookups, permanently blocking arbitrary code execution via manipulated log messages.",
+            "Implement strict MFA policy": "Enforces Time-based One-Time Passwords (TOTP) across identity perimeters, mitigating credential stuffing and lateral network movement.",
+            "Apply MS Security Update": "Installs the latest Microsoft Exchange Server cumulative patches to close ProxyLogon vulnerabilities and prevent web shell deployments.",
+            "Enable Block Public Access": "Reconfigures Cloud Storage (S3) IAM policies to strictly deny unauthenticated internet access, preventing mass data exfiltration."
+        };
+
+        // Render Rows
         const rowsHTML = data.recommended_actions.map((action, idx) => {
           const itemRosi = action.remediation_cost_lakhs > 0 ? (action.expected_monthly_loss_lakhs / action.remediation_cost_lakhs).toFixed(1) : 0;
           const itemPct = this.baseEAL > 0 ? ((action.expected_monthly_loss_lakhs / this.baseEAL) * 100).toFixed(1) : 0;
           
+          // Fetch the technical description from our dictionary, or use a default
+          const techDescription = actionDetails[action.remediation_action] || "Implements standard cybersecurity controls to mitigate identified exposure and enforce compliance.";
+          
           return `
             <tr>
-              <td class="reco-name-cell">
-                <div style="font-size:12px; color:var(--text-muted); margin-bottom:2px;">${action.asset_name}</div>
-                ${action.remediation_action}
+              <td class="reco-name-cell" style="padding-top:16px; padding-bottom:16px; min-width:300px;">
+                <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Target Asset: ${action.asset_name}</div>
+                <div style="font-size:14px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">${action.remediation_action}</div>
+                <div style="font-size:12px; color:var(--text-secondary); line-height:1.5; padding-right:20px;">${techDescription}</div>
               </td>
               <td style="font-weight:600;color:var(--text-primary);">₹${action.remediation_cost_lakhs}L</td>
               <td>
@@ -136,7 +151,7 @@ const OptimizerPage = {
                 <thead>
                   <tr>
                     <th>Asset & Security Control</th>
-                    <th>Cost</th>
+                    <th>Investment</th>
                     <th>Risk Eliminated</th>
                     <th>ROSI</th>
                   </tr>
