@@ -1,9 +1,13 @@
 import json
 import psycopg2
 from psycopg2.extras import execute_values
+import os
+from dotenv import load_dotenv
 
-# Your actual Neon Database URL
-DATABASE_URL = "postgresql://neondb_owner:npg_jqvgG74TzaQb@ep-nameless-term-b342r5tk-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+# 🔒 Securely load the database URL from your hidden .env file!
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 
 def migrate():
     try:
