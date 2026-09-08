@@ -59,7 +59,6 @@ def migrate():
         conn.commit()
         cur.close()
         conn.close()
-
         print(f"✅ DB SYNC: Refreshed Neon Database with {len(assets)} up-to-date assets.")
 
     except FileNotFoundError:
