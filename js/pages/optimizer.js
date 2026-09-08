@@ -1,5 +1,5 @@
 /* ==============================================
-   PAGES/OPTIMIZER.JS — Live Investment Optimizer + Tech Details
+   PAGES/OPTIMIZER.JS — Live Investment Optimizer 
    ============================================== */
 
 const OptimizerPage = {
@@ -13,7 +13,6 @@ const OptimizerPage = {
           <p class="page-subtitle">Powered by the Python 0/1 Knapsack Algorithm running on your live database.</p>
         </div>
 
-        <!-- Budget Input Form -->
         <div class="budget-form" style="margin-bottom:24px;">
           <div class="budget-form-group">
             <div>
@@ -39,7 +38,6 @@ const OptimizerPage = {
           </div>
         </div>
 
-        <!-- Results Table Container -->
         <div id="optimizer-results">
           <div class="card" style="padding:60px 24px;text-align:center;">
             <svg viewBox="0 0 24 24" style="width:40px;height:40px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 14px;">
@@ -53,7 +51,6 @@ const OptimizerPage = {
   },
 
   init() {
-    // Get Base EAL from Live Dashboard API for progress bar math
     fetch('https://sentra-risk-backend.onrender.com/api/dashboard')
       .then(res => res.json())
       .then(data => { this.baseEAL = data.total_enterprise_risk_lakhs; });
@@ -75,7 +72,7 @@ const OptimizerPage = {
   runOptimize() {
     const inputEl = document.getElementById('budget-input');
     const resultsEl = document.getElementById('optimizer-results');
-    const budgetLakhs = parseFloat(inputEl.value);
+    const budgetLakhs = parseInt(inputEl.value);
 
     if (!budgetLakhs || budgetLakhs <= 0) return;
 
@@ -92,7 +89,6 @@ const OptimizerPage = {
         const totalRosi = data.budget_spent_lakhs > 0 ? (data.max_risk_reduced_lakhs / data.budget_spent_lakhs).toFixed(1) : 0;
         const totalReductionPct = this.baseEAL > 0 ? ((data.max_risk_reduced_lakhs / this.baseEAL) * 100).toFixed(1) : 0;
 
-        // Render Summary Callout
         const summaryHTML = `
           <div class="optimizer-summary" style="margin-bottom:20px;">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -103,64 +99,14 @@ const OptimizerPage = {
           </div>
         `;
 
-        // ==========================================
-        // TECHNICAL DICTIONARY FOR SOLUTIONS
-        // ==========================================
-        const actionDetails = {
-            "Update PHP to 7.3.11": "Patches critical Remote Code Execution (RCE) vulnerabilities in the PHP runtime environment, preventing unauthorized server takeover.",
-            "Update Log4j to v2.17.1": "Mitigates the Log4Shell zero-day by disabling JNDI lookups, permanently blocking arbitrary code execution via manipulated log messages.",
-            "Implement strict MFA policy": "Enforces Time-based One-Time Passwords (TOTP) across identity perimeters, mitigating credential stuffing and lateral network movement.",
-            "Apply MS Security Update": "Installs the latest Microsoft Exchange Server cumulative patches to close ProxyLogon vulnerabilities and prevent web shell deployments.",
-            "Enable Block Public Access": "Reconfigures Cloud Storage (S3) IAM policies to strictly deny unauthenticated internet access, preventing mass data exfiltration."
-        };
-
-        // Render Rows
-        const rowsHTML = data.recommended_actions.map((action, idx) => {
+        const rowsHTML = data.recommended_actions.map((action) => {
           const itemRosi = action.remediation_cost_lakhs > 0 ? (action.expected_monthly_loss_lakhs / action.remediation_cost_lakhs).toFixed(1) : 0;
           const itemPct = this.baseEAL > 0 ? ((action.expected_monthly_loss_lakhs / this.baseEAL) * 100).toFixed(1) : 0;
           
-          // Fetch the technical description from our dictionary, or use a default
-          const techDescription = actionDetails[action.remediation_action] || "Implements standard cybersecurity controls to mitigate identified exposure and enforce compliance.";
-          
           return `
             <tr>
-              <td class="reco-name-cell" style="padding-top:16px; padding-bottom:16px; min-width:300px;">
-                <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Target Asset: ${action.asset_name}</div>
-                <div style="font-size:14px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">${action.remediation_action}</div>
-                <div style="font-size:12px; color:var(--text-secondary); line-height:1.5; padding-right:20px;">${techDescription}</div>
+              <td class="reco-name-cell">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:2px;">Asset: ${action.asset_name}</div>
+                ${action.remediation_action}
               </td>
-              <td style="font-weight:600;color:var(--text-primary);">₹${action.remediation_cost_lakhs}L</td>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <div style="flex:1;height:4px;background:var(--bg-hover);border-radius:2px;min-width:60px;max-width:100px;">
-                    <div style="height:100%;border-radius:2px;background:var(--risk-low);width:${Math.min(itemPct, 100)}%;"></div>
-                  </div>
-                  <span style="font-weight:600;color:var(--risk-low);font-variant-numeric:tabular-nums;">₹${action.expected_monthly_loss_lakhs.toFixed(1)}L</span>
-                </div>
-              </td>
-              <td class="rosi-value">${itemRosi}×</td>
-            </tr>
-          `;
-        }).join('');
-
-        resultsEl.innerHTML = `
-          ${summaryHTML}
-          <div class="card" style="overflow:hidden;">
-            <div class="reco-table-wrap">
-              <table class="reco-table">
-                <thead>
-                  <tr>
-                    <th>Asset & Security Control</th>
-                    <th>Investment</th>
-                    <th>Risk Eliminated</th>
-                    <th>ROSI</th>
-                  </tr>
-                </thead>
-                <tbody>${rowsHTML}</tbody>
-              </table>
-            </div>
-          </div>
-        `;
-      });
-  },
-};
+              <td styl
