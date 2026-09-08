@@ -1,5 +1,5 @@
 /* ==============================================
-   PAGES/EXPLORER.JS — Risk Explorer + Add/Delete Asset
+   PAGES/EXPLORER.JS — Risk Explorer + ML + Add/Delete
    ============================================== */
 
 const ExplorerPage = {
@@ -48,10 +48,15 @@ const ExplorerPage = {
            </div>
         </div>
 
-        <!-- TOGGLE BUTTON FOR ALL ASSETS -->
-        <div style="text-align: center; margin-top: 32px;">
-          <button id="toggle-assets-btn" onclick="ExplorerPage.toggleShowAll()" style="padding:10px 24px;background:transparent;color:var(--accent);border:2px solid var(--accent);border-radius:8px;font-weight:600;cursor:pointer;display:none; transition: all 0.2s;">
+        <!-- TOGGLE BUTTONS FOR EXPLORER -->
+        <div style="text-align: center; margin-top: 32px; display: flex; justify-content: center; gap: 16px;">
+          <button id="toggle-assets-btn" onclick="ExplorerPage.toggleShowAll()" style="padding:10px 24px;background:transparent;color:var(--text-primary);border:2px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer; display:none; transition: all 0.2s;">
             Show All Vulnerabilities
+          </button>
+          
+          <button id="run-ml-btn" onclick="ExplorerPage.runMLClustering()" style="padding:10px 24px;background:var(--accent);color:white;border:2px solid var(--accent);border-radius:8px;font-weight:600;cursor:pointer; display:flex; align-items:center; gap:8px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(46, 90, 172, 0.3);">
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:white;fill:none;stroke-width:2;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            Run ML Clustering
           </button>
         </div>
 
@@ -70,12 +75,12 @@ const ExplorerPage = {
       
       if (this.showAll) {
           btn.innerText = "Show Top 12 Only";
-          btn.style.background = "var(--accent)";
-          btn.style.color = "white";
+          btn.style.background = "var(--text-primary)";
+          btn.style.color = "var(--bg-app)";
       } else {
           btn.innerText = "Show All Vulnerabilities";
           btn.style.background = "transparent";
-          btn.style.color = "var(--accent)";
+          btn.style.color = "var(--text-primary)";
       }
       
       this.renderGrid();
@@ -111,15 +116,12 @@ const ExplorerPage = {
       });
   },
 
-  // NEW: The Delete Function!
   deleteAsset(assetId, cve, btnElement) {
       if(!confirm(`Are you sure you want to delete vulnerability ${cve} from ${assetId}?`)) return;
       
-      // Instantly hide the card for a fast UI experience
       const card = btnElement.closest('.asset-card');
       if(card) card.style.display = 'none';
 
-      // Tell Python to wipe it from the Pipeline
       fetch('https://sentra-risk.onrender.com/api/delete-asset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -218,5 +220,62 @@ const ExplorerPage = {
           `;
           grid.innerHTML += cardHTML;
       });
+  },
+
+  // ==========================================
+  // ML CLUSTERING FUNCTION
+  // ==========================================
+  runMLClustering() {
+      const btn = document.getElementById('run-ml-btn');
+      btn.innerHTML = 'Running K-Means Model...';
+      
+      fetch('https://sentra-risk.onrender.com/api/ml-clusters') 
+      .then(res => res.json())
+      .then(data => {
+          this.assetsData = data.assets;
+          
+          // Sort so Tier 1 is at the top!
+          this.assetsData.sort((a, b) => a.ml_prediction.tier.localeCompare(b.ml_prediction.tier));
+          
+          btn.innerHTML = '✅ Clustering Complete';
+          btn.style.background = 'var(--risk-low)';
+          btn.style.borderColor = 'var(--risk-low)';
+          
+          // Render the grid with the new ML tags
+          const grid = document.getElementById('live-assets-grid');
+          grid.innerHTML = `<div style="grid-column: span 3; padding: 15px; background:var(--accent-subtle); color:var(--accent); border-radius:8px; margin-bottom:10px; font-weight:600;">🧠 AI Engine applied Unsupervised K-Means clustering across 3 dimensions (CVSS, Impact, Probability).</div>`;
+          
+          this.assetsData.forEach(dbAsset => {
+              const ealCr = (dbAsset.expected_monthly_loss_lakhs / 100).toFixed(2);
+              const mlTier = dbAsset.ml_prediction.tier;
+              const mlColor = dbAsset.ml_prediction.color;
+
+              grid.innerHTML += `
+                <div class="asset-card" style="border: 2px solid var(--risk-${mlColor}-border);">
+                  <div class="asset-card-top">
+                    <div>
+                      <div class="asset-card-name">${dbAsset.asset_name}</div>
+                      <div class="severity-badge ${mlColor}" style="margin-top:8px;">${mlTier}</div>
+                    </div>
+                    <!-- TRASH CAN BUTTON FOR ML VIEW -->
+                    <button onclick="ExplorerPage.deleteAsset('${dbAsset.asset_id}', '${dbAsset.vulnerability_cve}', this)" style="background:transparent; border:none; cursor:pointer; color:var(--text-muted); transition:color 0.2s;" onmouseover="this.style.color='var(--risk-critical)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete Asset">
+                      <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                  </div>
+                  <div class="asset-card-stats" style="margin-top:16px;">
+                    <div class="stat-mini">
+                      <span class="stat-mini-label">EAL</span>
+                      <span class="stat-mini-value">₹${ealCr} Cr</span>
+                    </div>
+                    <div class="stat-mini">
+                      <span class="stat-mini-label">Vulnerability</span>
+                      <span class="stat-mini-value" style="font-size:10px;">${dbAsset.vulnerability_cve}</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+          });
+      })
+      .catch(err => alert("ML Engine Error: Ensure your Python API is running correctly."));
   }
 };

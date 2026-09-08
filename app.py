@@ -1,4 +1,6 @@
 from flask import Flask, jsonify, request
+import numpy as np
+from sklearn.cluster import KMeans
 from flask_cors import CORS
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -229,7 +231,55 @@ def chat():
         return jsonify({"response": response.json()["choices"][0]["message"]["content"]})
     except Exception as e:
         return jsonify({"response": f"System error: {str(e)}"})
+# ==========================================
+# 6. ML THREAT CLUSTERING (Unsupervised AI)
+# ==========================================
+@app.route('/api/ml-clusters', methods=['GET'])
+def ml_clusters():
+    assets = load_data()
+    if len(assets) < 3:
+        return jsonify({"error": "Not enough data for ML clustering"})
 
+    # 1. Feature Engineering: We extract the 3 key metrics to form our 3D data space
+    X = []
+    max_impact = max(float(a.get("financial_impact_lakhs", 1)) for a in assets)
+    
+    for a in assets:
+        prob = float(a.get("probability_of_attack_per_month", 0))  # Scale 0 to 1
+        cvss = float(a.get("cvss_severity", 0)) / 10.0             # Scale 0 to 1
+        impact = float(a.get("financial_impact_lakhs", 0)) / max_impact # Scale 0 to 1
+        
+        X.append([prob, cvss, impact])
+
+    # 2. Convert to Numpy Array for Scikit-Learn
+    X_matrix = np.array(X)
+
+    # 3. Initialize and Run K-Means Clustering Algorithm
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+    kmeans.fit(X_matrix)
+    labels = kmeans.labels_
+    centroids = kmeans.cluster_centers_
+
+    # 4. Determine which cluster is highest risk (based on the centroid sums)
+    cluster_scores = [sum(c) for c in centroids]
+    sorted_clusters = np.argsort(cluster_scores) # Lowest to Highest
+
+    # Map the abstract ML numbers to human-readable CISO Action Tiers
+    cluster_mapping = {
+        sorted_clusters[2]: {"tier": "Tier 1: Immediate Action Required", "color": "critical"},
+        sorted_clusters[1]: {"tier": "Tier 2: Active Monitoring", "color": "high"},
+        sorted_clusters[0]: {"tier": "Tier 3: Acceptable Risk", "color": "low"}
+    }
+
+    # 5. Inject the ML predictions back into the asset data
+    for i, asset in enumerate(assets):
+        asset["ml_prediction"] = cluster_mapping[labels[i]]
+
+    return jsonify({
+        "status": "success",
+        "algorithm": "K-Means Clustering (3 Dimensions)",
+        "assets": assets
+    })
 if __name__ == '__main__':
     print("🚀 Starting Flask API on http://127.0.0.1:5000")
     app.run(port=5000, debug=True)
