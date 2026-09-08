@@ -109,7 +109,7 @@ const ExplorerPage = {
           "remediation_action": "Apply standard patches"
       };
 
-      fetch('https://sentra-risk-backend.onrender.com/api/add-asset', {
+      fetch('https://sentra-risk.onrender.com/api/add-asset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newAsset)
@@ -129,7 +129,7 @@ const ExplorerPage = {
       const card = btnElement.closest('.asset-card');
       if(card) card.style.display = 'none';
 
-      fetch('https://sentra-risk-backend.onrender.com/api/delete-asset', {
+      fetch('https://sentra-risk.onrender.com/api/delete-asset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ asset_id: assetId, vulnerability_cve: cve })
@@ -155,7 +155,7 @@ const ExplorerPage = {
         });
     }
 
-    fetch('https://sentra-risk-backend.onrender.com/api/assets')
+    fetch('https://sentra-risk.onrender.com/api/assets')
       .then(res => res.json())
       .then(data => {
           this.assetsData = data.assets;
@@ -289,7 +289,7 @@ const ExplorerPage = {
       const btn = document.getElementById('run-ml-btn');
       btn.innerHTML = 'Running K-Means Model...';
       
-      fetch('https://sentra-risk-backend.onrender.com/api/ml-clusters') 
+      fetch('https://sentra-risk.onrender.com/api/ml-clusters') 
       .then(res => res.json())
       .then(data => {
           this.assetsData = data.assets;
