@@ -9,7 +9,7 @@ import requests
 import os
 from dotenv import load_dotenv
 
-# 🔒 Load secrets from .env file securely
+# Load secrets from .env file securely
 load_dotenv()
 
 app = Flask(__name__)
@@ -20,9 +20,9 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 DATABASE_URL = os.getenv("DATABASE_URL")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# ==========================================
+
 # 1. DATABASE LOADER (Fetches Live Neon Data)
-# ==========================================
+
 def load_data():
     try:
         conn = psycopg2.connect(DATABASE_URL)
@@ -36,9 +36,8 @@ def load_data():
         print(f"Database Error: {e}")
         return []
 
-# ==========================================
+
 # 2. DASHBOARD ENDPOINT
-# ==========================================
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard():
     assets = load_data()
@@ -51,9 +50,8 @@ def get_dashboard():
         "top_risks": sorted_assets[:12]
     })
 
-# ==========================================
+
 # 3. KNAPSACK BUDGET OPTIMIZER ENDPOINT
-# ==========================================
 @app.route('/api/optimize/<int:budget_lakhs>', methods=['GET'])
 def optimize_budget(budget_lakhs):
     data = load_data()
@@ -84,12 +82,8 @@ def optimize_budget(budget_lakhs):
         "recommended_actions": selected_fixes
     })
 
-# ==========================================
-# 4. ADD ASSET ENDPOINT
-# ==========================================
-# ==========================================
+
 # 4. ADD ASSET ENDPOINT (Injects straight into Neon DB)
-# ==========================================
 @app.route('/api/add-asset', methods=['POST'])
 def add_asset():
     new_asset = request.json
@@ -140,12 +134,8 @@ def add_asset():
         print(f"❌ Add Asset Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ==========================================
-# 5. NEW: DELETE ASSET ENDPOINT
-# ==========================================
-# ==========================================
+
 # 5. DELETE ASSET ENDPOINT (Deletes from Neon DB)
-# ==========================================
 @app.route('/api/delete-asset', methods=['POST'])
 def delete_asset():
     req = request.json
@@ -172,9 +162,8 @@ def delete_asset():
         print(f"❌ Delete Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ==========================================
+
 # 6. ALL ASSETS ENDPOINT
-# ==========================================
 @app.route('/api/assets', methods=['GET'])
 def get_all_assets():
     assets = load_data()
@@ -186,9 +175,7 @@ def get_all_assets():
         "assets": sorted_assets
     })
 
-# ==========================================
 # 7. AI CHAT ENDPOINT (RAG)
-# ==========================================
 @app.route('/api/chat', methods=['POST'])
 def chat():
     user_message = request.json.get("message", "")
@@ -231,9 +218,7 @@ def chat():
         return jsonify({"response": response.json()["choices"][0]["message"]["content"]})
     except Exception as e:
         return jsonify({"response": f"System error: {str(e)}"})
-# ==========================================
 # 6. ML THREAT CLUSTERING (Unsupervised AI)
-# ==========================================
 @app.route('/api/ml-clusters', methods=['GET'])
 def ml_clusters():
     assets = load_data()
@@ -281,5 +266,5 @@ def ml_clusters():
         "assets": assets
     })
 if __name__ == '__main__':
-    print("🚀 Starting Flask API on http://127.0.0.1:5000")
+    print("🚀 Starting Flask API on https://sentra-risk.onrender.com")
     app.run(port=5000, debug=True)

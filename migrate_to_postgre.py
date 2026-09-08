@@ -4,7 +4,7 @@ from psycopg2.extras import execute_values
 import os
 from dotenv import load_dotenv
 
-# 🔒 Securely load the database URL from your hidden .env file!
+#  Securely load the database URL from your hidden .env file!
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 

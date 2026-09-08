@@ -35,7 +35,7 @@ print("Fetching attack probabilities and applying Live Threat Telemetry...")
 for asset in assets:
     base_prob = get_monthly_probability(asset["vulnerability_cve"], asset["cvss_severity"])
     
-    # 💥 HACKATHON TRICK: Simulate live network threat fluctuations (+/- 15%)
+    
     fluctuation = random.uniform(0.85, 1.15) 
     final_prob = base_prob * fluctuation
     
