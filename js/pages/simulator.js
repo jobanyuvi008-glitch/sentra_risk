@@ -81,7 +81,7 @@ const SimulatorPage = {
   init() {
     this.checkedActions = new Set();
     
-    fetch('https://sentra-risk-backend.onrender.com/api/assets')
+    fetch('https://sentra-risk.onrender.com/api/assets')
       .then(res => res.json())
       .then(data => {
          this.baseEALCr = data.total_enterprise_risk_lakhs / 100;
@@ -136,4 +136,79 @@ const SimulatorPage = {
         if (this.checkedActions.has(actionId)) {
           this.checkedActions.delete(actionId);
           card.classList.remove('checked');
+        } else {
+          this.checkedActions.add(actionId);
+          card.classList.add('checked');
+        }
+        this.updateResults();
+      });
+    });
+  },
+
+  updateResults() {
+    const resultsEl = document.getElementById('sim-results');
+    const investBar = document.getElementById('investment-bar');
+
+    if (this.checkedActions.size === 0) {
+      resultsEl.innerHTML = `
+        <div class="card" style="padding:40px 24px;text-align:center;">
+          <svg viewBox="0 0 24 24" style="width:36px;height:36px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 12px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <div style="font-size:13.5px;font-weight:600;color:var(--text-secondary);">Current Live Exposure: ₹${this.baseEALCr.toFixed(2)} Cr</div>
+        </div>
+      `;
+      investBar.style.display = 'none';
+      return;
+    }
+
+    let totalCostLakhs = 0;
+    let totalEalReductionLakhs = 0;
+
+    this.checkedActions.forEach(actionId => {
+      totalCostLakhs += this.liveActions[actionId].costLakhs;
+      totalEalReductionLakhs += this.liveActions[actionId].riskSavedLakhs;
+    });
+
+    const totalEALReductionCr = totalEalReductionLakhs / 100;
+    const afterEALCr = Math.max(this.baseEALCr - totalEALReductionCr, 0.00);
+    const reductionPct = ((totalEALReductionCr / this.baseEALCr) * 100).toFixed(1);
     
+    const afterExposureCr = Math.max(this.baseExposureCr * (1 - (reductionPct / 100)), 0.00); 
+    const afterLikelihood = Math.max(64 - reductionPct, 0);
+    const rosi = totalCostLakhs > 0 ? (totalEalReductionLakhs / totalCostLakhs).toFixed(1) : '—';
+
+    resultsEl.innerHTML = `
+      <div class="reduction-callout" style="margin-bottom:16px;">
+        <div class="reduction-callout-left">
+          <div class="reduction-callout-title">Risk Reduced By</div>
+          <div class="reduction-callout-sub">Live EAL: ₹${this.baseEALCr.toFixed(2)} Cr &rarr; ₹${afterEALCr.toFixed(2)} Cr</div>
+          <div class="reduction-callout-sub" style="font-size:12px;color:var(--text-muted);">Investment: ₹${totalCostLakhs}L &nbsp;·&nbsp; ROSI: ${rosi}×</div>
+        </div>
+        <div class="reduction-callout-number">${reductionPct}%</div>
+      </div>
+
+      <div class="before-after-grid">
+        <div class="before-after-card">
+          <div class="ba-header"><div class="ba-dot"></div><span class="ba-label">BEFORE</span></div>
+          <div class="ba-metrics">
+            <div class="ba-metric"><div class="ba-metric-label">MAX EXPOSURE</div><div class="ba-metric-value">₹${this.baseExposureCr.toFixed(1)} Cr</div></div>
+            <div class="ba-metric"><div class="ba-metric-label">EXPECTED LOSS</div><div class="ba-metric-value">₹${this.baseEALCr.toFixed(2)} Cr</div></div>
+          </div>
+        </div>
+
+        <div class="before-after-card after">
+          <div class="ba-header"><div class="ba-dot after-dot"></div><span class="ba-label after-label">AFTER</span></div>
+          <div class="ba-metrics">
+            <div class="ba-metric"><div class="ba-metric-label">MAX EXPOSURE</div><div class="ba-metric-value after-value">₹${afterExposureCr.toFixed(1)} Cr</div></div>
+            <div class="ba-metric"><div class="ba-metric-label">EXPECTED LOSS</div><div class="ba-metric-value after-value">₹${afterEALCr.toFixed(2)} Cr</div></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    investBar.style.display = 'block';
+    document.getElementById('inv-count').textContent = this.checkedActions.size;
+    document.getElementById('inv-cost').textContent = `₹${totalCostLakhs}L`;
+    document.getElementById('inv-eal-red').textContent = `₹${totalEALReductionCr.toFixed(2)} Cr`;
+    document.getElementById('inv-rosi').textContent = `${rosi}×`;
+  },
+};

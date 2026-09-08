@@ -51,7 +51,7 @@ const OptimizerPage = {
   },
 
   init() {
-    fetch('https://sentra-risk-backend.onrender.com/api/dashboard')
+    fetch('https://sentra-risk.onrender.com/api/dashboard')
       .then(res => res.json())
       .then(data => { this.baseEAL = data.total_enterprise_risk_lakhs; });
 
@@ -78,7 +78,7 @@ const OptimizerPage = {
 
     resultsEl.innerHTML = '<div style="text-align:center; padding: 40px; color:var(--text-muted);">Running Knapsack Algorithm...</div>';
 
-    fetch(`https://sentra-risk-backend.onrender.com/api/optimize/${budgetLakhs}`)
+    fetch(`https://sentra-risk.onrender.com/api/optimize/${budgetLakhs}`)
       .then(res => res.json())
       .then(data => {
         if (!data.recommended_actions || data.recommended_actions.length === 0) {
@@ -109,4 +109,41 @@ const OptimizerPage = {
                 <div style="font-size:12px; color:var(--text-muted); margin-bottom:2px;">Asset: ${action.asset_name}</div>
                 ${action.remediation_action}
               </td>
-              <td styl
+              <td style="font-weight:600;color:var(--text-primary);">₹${action.remediation_cost_lakhs}L</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;height:4px;background:var(--bg-hover);border-radius:2px;min-width:60px;max-width:100px;">
+                    <div style="height:100%;border-radius:2px;background:var(--risk-low);width:${Math.min(itemPct, 100)}%;"></div>
+                  </div>
+                  <span style="font-weight:600;color:var(--risk-low);font-variant-numeric:tabular-nums;">₹${action.expected_monthly_loss_lakhs.toFixed(1)}L</span>
+                </div>
+              </td>
+              <td class="rosi-value">${itemRosi}×</td>
+            </tr>
+          `;
+        }).join('');
+
+        resultsEl.innerHTML = `
+          ${summaryHTML}
+          <div class="card" style="overflow:hidden;">
+            <div class="reco-table-wrap">
+              <table class="reco-table">
+                <thead>
+                  <tr>
+                    <th>Security Control</th>
+                    <th>Investment</th>
+                    <th>Risk Eliminated</th>
+                    <th>ROSI</th>
+                  </tr>
+                </thead>
+                <tbody>${rowsHTML}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      })
+      .catch(err => {
+          resultsEl.innerHTML = `<div class="card" style="padding:40px; text-align:center; color:var(--risk-critical);">API Error. Check Render logs.</div>`;
+      });
+  },
+};
